@@ -11,6 +11,10 @@ DockItem {
         "icon": root.settings ? root.settings.dockValues.launcherIcon : "",
         "launcherIcon": true,
         "running": false,
+        "pending": false,
+        "active": false,
+        "urgent": false,
+        "toplevels": [],
         "pinned": false,
         "fallback": ""
     }

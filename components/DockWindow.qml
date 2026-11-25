@@ -32,7 +32,7 @@ PanelWindow {
     }
     property var previousUrgent: []
     property bool attentionHold: false
-    readonly property var urgentKeys: apps.filter(app => app.urgent && app.toplevels.some(w => w.urgent && !w.activated && w.monitor === monitor)).map(app => app.canonicalId || app.appId)
+    readonly property var urgentKeys: apps.filter(app => app.urgent && app.toplevels.some(w => w.urgent && w !== Hyprland.activeToplevel && w.monitor === monitor)).map(app => app.canonicalId || app.appId)
 
     signal activateApp(var app)
     signal menuRequested(var app, real x, real bottom)

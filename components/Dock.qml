@@ -81,7 +81,7 @@ Item {
     }
 
     function appForKey(key) {
-        return apps.find(app => appKey(app) === key) || {appId: key, name: key, icon: "", fallback: "?", running: false, pinned: false, toplevels: []}
+        return apps.find(app => appKey(app) === key) || {appId: key, name: key, icon: "", fallback: "?", running: false, pending: false, active: false, urgent: false, pinned: false, toplevels: []}
     }
 
     function syncItemKeys() {

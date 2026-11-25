@@ -43,7 +43,7 @@ cd ~/plank-wayland
 | Action | Result |
 | --- | --- |
 | Move pointer to bottom edge | Reveal dock |
-| Click a running single-window app | Focus window |
+| Click a running single-window app | Focus or minimize according to workspace and mode |
 | Click a pinned app with no window | Launch; pending indicator times out |
 | Click or hover a multi-window app | Show window picker |
 | Right-click app | Context menu, pin/unpin, settings |
@@ -65,7 +65,7 @@ The Hyprland layer namespace is `plank-wayland-dock` on every display. Existing 
 
 ### Experimental minimize / restore
 
-Default `minimizeMode: "off"` preserves proven focus behavior. Try `"native"` first: the Wayland minimize request can be ignored by Hyprland. If not supported, opt into `"workspace"` mode. That moves a focused ordinary numeric-workspace window to `special:plank-minimized-N--MONITOR` where N is its original workspace number and MONITOR is its original display (when known). Clicking its taskbar icon restores the window to N, preferring the original display when that workspace no longer exists. Named, fullscreen and pinned windows are not moved; grouped apps retain the picker. If a workspace or monitor was moved/disconnected, current topology takes precedence. No fallback runs automatically.
+Default `minimizeMode: "off"` preserves proven focus behavior. Try `"native"` first: the Wayland minimize request can be ignored by Hyprland. If not supported, opt into `"workspace"` mode. That moves an ordinary numeric-workspace window in the currently focused workspace to `special:plank-minimized-N--MONITOR` where N is its original workspace number and MONITOR is its original display (when known). Clicking its taskbar icon restores the window to N, preferring the original display when that workspace no longer exists. Named, fullscreen and pinned windows are not moved; grouped apps retain the picker. If a workspace or monitor was moved/disconnected, current topology takes precedence. No fallback runs automatically.
 
 Recovery even if the dock crashes: open the special workspace from a Hyprland terminal (replace the example name with the exact special-workspace name from hyprctl clients, without its special: prefix), then move the window back using your normal keybinding:
 

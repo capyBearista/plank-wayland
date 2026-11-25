@@ -163,6 +163,11 @@ Item {
         return entry.execString || appId
     }
 
+    function isFocused(win) {
+        const active = Hyprland.activeToplevel
+        return !!(win && active && (win === active || (win.address && active.address && win.address === active.address)))
+    }
+
     function appFromId(appId, toplevels, pinned, pending) {
         const entry = desktopEntry(appId)
         const title = toplevels.length > 0 ? (toplevels[0].title || appId) : appId
@@ -177,8 +182,8 @@ Item {
             fallback: appId.length > 0 ? appId[0].toUpperCase() : "?",
             pinned: pinned,
             running: toplevels.length > 0,
-            urgent: toplevels.some(w => w.urgent && !w.activated),
-            active: toplevels.some(w => w.activated),
+            urgent: toplevels.some(w => w.urgent && !isFocused(w)),
+            active: toplevels.some(isFocused),
             pending: !!pending,
             toplevels: toplevels
         }
@@ -222,7 +227,7 @@ Item {
     }
 
     function appSignature(app) {
-        return [app.appId, app.desktopId, app.name, app.icon, app.command, app.canonicalId, app.pinned, app.running, app.pending, app.urgent, app.active, app.toplevels.map(w => [toplevelId(w, 0), w.title, w.urgent, w.activated, w.monitor ? w.monitor.name : "", w.wayland ? w.wayland.minimized : false].join(":")).join(",")].join("|")
+        return [app.appId, app.desktopId, app.name, app.icon, app.command, app.canonicalId, app.pinned, app.running, app.pending, app.urgent, app.active, app.toplevels.map(w => [toplevelId(w, 0), w.title, w.urgent, isFocused(w), w.workspace ? w.workspace.name : "", w.monitor ? w.monitor.name : "", w.wayland ? w.wayland.minimized : false].join(":")).join(",")].join("|")
     }
 
     function rawEventName(event) {
@@ -283,7 +288,7 @@ Item {
                 if (!grouped[key]) grouped[key] = { appId: appId, toplevels: [] }
                 grouped[key].toplevels.push(win)
             }
-        } catch (e) {}
+        } catch (e) { console.warn("WindowModel: could not enumerate windows: " + e); return }
 
         const now = Date.now()
         const nextPending = Object.create(null)
@@ -359,6 +364,7 @@ Item {
 
     Connections {
         target: Hyprland
+        function onActiveToplevelChanged() { root.scheduleUpdate(false) }
         function onRawEvent(event) {
             const name = root.rawEventName(event)
             if (name.indexOf("openwindow") >= 0) {

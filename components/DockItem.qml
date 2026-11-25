@@ -37,7 +37,7 @@ Rectangle {
     signal dragMoved(real dockX)
     signal dragFinished(real dockX, bool accepted)
     property bool menuOpen: false
-    readonly property bool hasMultipleWindows: root.app && root.app.running && root.app.toplevels && root.app.toplevels.length > 1
+    readonly property bool hasMultipleWindows: root.app.running === true && (root.app.toplevels || []).length > 1
 
     signal activate(var app)
     signal openMenu(var app)
@@ -180,7 +180,7 @@ Rectangle {
         color: "transparent"
         border.width: 2
         border.color: "#e8b45d"
-        visible: root.app.pending && !root.app.running
+        visible: !root.launcherIcon && root.app.pending === true && root.app.running !== true
         SequentialAnimation on opacity {
             running: pendingRing.visible
             loops: Animation.Infinite
@@ -190,7 +190,7 @@ Rectangle {
     }
 
     Indicator {
-        active: root.app.running
+        active: !root.launcherIcon && root.app.running === true
         focused: root.app.active === true
         itemZoom: root.zoom
         settings: root.settings
@@ -204,7 +204,7 @@ Rectangle {
         interval: root.settings ? root.settings.dockValues.hoverMenuDelayMs : 400
         repeat: false
         onTriggered: {
-            if (root.hasMultipleWindows) root.openMenu(root.app)
+            if (root.hasMultipleWindows && root.hovered && !root.menuOpen && !root.dragging && !hitMouse.pressed) root.openMenu(root.app)
         }
     }
 
@@ -233,7 +233,7 @@ Rectangle {
         color: root.theme.pinnedBadgeColor
         anchors.right: iconShell.right
         anchors.top: iconShell.top
-        visible: root.app.pinned
+        visible: root.app.pinned === true
     }
 
     MouseArea {
@@ -250,9 +250,9 @@ Rectangle {
         onEntered: {
             root.hovered = true
             root.reportPointer(mouseX)
-            if (root.hasMultipleWindows) {
+            if (root.hasMultipleWindows && !root.menuOpen && !root.dragging) {
                 hoverMenuTimer.restart()
-            } else if (root.menuOpen) {
+            } else if (root.menuOpen && !root.hasMultipleWindows) {
                 root.closeMenuRequested()
             }
         }
