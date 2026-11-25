@@ -48,10 +48,12 @@ ShellRoot {
 
         if (!address.startsWith("0x")) address = "0x" + address
 
-        Hyprland.dispatch("focuswindow address:" + address)
-        Hyprland.dispatch("alterzorder top,address:" + address)
-        if (savedX !== 0 || savedY !== 0) {
-            Hyprland.dispatch("movecursor " + Math.round(savedX) + " " + Math.round(savedY))
+        if (!/^0x[0-9a-fA-F]+$/.test(address)) return false
+        const selector = JSON.stringify("address:" + address)
+        Hyprland.dispatch("hl.dsp.focus({ window = " + selector + " })")
+        Hyprland.dispatch("hl.dsp.window.alter_zorder({ window = " + selector + ", mode = \"top\" })")
+        if (Number.isFinite(savedX) && Number.isFinite(savedY) && (savedX !== 0 || savedY !== 0)) {
+            Hyprland.dispatch("hl.dsp.cursor.move({ x = " + Math.round(savedX) + ", y = " + Math.round(savedY) + " })")
         }
         return true
     }
@@ -279,6 +281,8 @@ ShellRoot {
                 visible: windowModel.ready
 
                 anchors {
+                    left: true
+                    right: true
                     bottom: true
                 }
 
@@ -287,24 +291,51 @@ ShellRoot {
                 }
 
                 color: "transparent"
-                implicitWidth: dock.implicitWidth
-                implicitHeight: dock.layerHeight
-                exclusiveZone: dock.hidden ? 0 : 30
+                implicitHeight: dock.layerHeight + dock.bottomGap
+                // Auto-hide must not resize tiled windows when the dock appears.
+                exclusiveZone: dock.autoHide || dock.smartHideEnabled
+                    ? 0 : Math.ceil(dock.barHeight + dock.bottomGap)
                 screen: screenForMonitor("HDMI-A-1")
                 WlrLayershell.namespace: "plank-wayland-dock"
-                mask: Region { item: dockInputArea }
+                mask: Region {
+                    item: dockInputAreaEdge
+                    Region { item: dockInputArea }
+                }
+
+                // Only the bottom strip and visible dock accept pointer input.
+                Item {
+                    id: dockInputAreaEdge
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: (dock.autoHide || dock.smartHideEnabled) ? dock.edgeTriggerHeight : 0
+                    z: 2
+
+                    HoverHandler {
+                        id: dockInputAreaEdgeHover
+                        enabled: dockInputAreaEdge.height > 0
+                        blocking: false
+                    }
+                }
 
                 Item {
                     id: dockInputArea
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.bottom: parent.bottom
                     width: dock.barWidth
-                    height: dock.barHeight
+                    height: dock.hidden ? 0 : dock.barHeight + dock.bottomGap
+                    z: 1
+
+                    HoverHandler {
+                        id: dockInputAreaHover
+                        blocking: false
+                    }
                 }
 
                 Dock {
                     id: dock
                     anchors.horizontalCenter: parent.horizontalCenter
+                    surfaceHovered: dockInputAreaEdgeHover.hovered || dockInputAreaHover.hovered
                     apps: windowModel.dockApps.length > 0 ? windowModel.dockApps : windowModel.pinnedDockApps
                     settings: settingsStore
                     smartHideEnabled: settingsStore.smartHide
@@ -314,7 +345,7 @@ ShellRoot {
                     onActivate: app => {
                         if (app && app.running && app.toplevels && app.toplevels.length > 1) {
                             root.menuApp = app
-                            root.menuX = dockWindow.x + dock.menuX
+                            root.menuX = dockWindow.x + dock.x + dock.menuX
                             root.menuBottomMargin = dock.menuBottomMargin
                             root.menuOpen = true
                         } else {
@@ -323,12 +354,14 @@ ShellRoot {
                     }
                     onOpenMenu: app => {
                         root.menuApp = app
-                        root.menuX = dockWindow.x + dock.menuX
+                        root.menuX = dockWindow.x + dock.x + dock.menuX
                         root.menuBottomMargin = dock.menuBottomMargin
                         root.menuOpen = true
                     }
                     onCloseMenuRequested: root.menuOpen = false
-                    onLaunch: root.launcherOpen = !root.launcherOpen
+                    onLaunch: Quickshell.execDetached([
+    Quickshell.env("HOME") + "/.local/bin/walker-themed"
+])
                 }
             }
         }
@@ -342,6 +375,8 @@ ShellRoot {
                 visible: windowModel.ready
 
                 anchors {
+                    left: true
+                    right: true
                     bottom: true
                 }
 
@@ -350,24 +385,51 @@ ShellRoot {
                 }
 
                 color: "transparent"
-                implicitWidth: dockEdp.implicitWidth
-                implicitHeight: dockEdp.layerHeight
-                exclusiveZone: dockEdp.hidden ? 0 : 30
+                implicitHeight: dockEdp.layerHeight + dockEdp.bottomGap
+                // Auto-hide must not resize tiled windows when the dock appears.
+                exclusiveZone: dockEdp.autoHide || dockEdp.smartHideEnabled
+                    ? 0 : Math.ceil(dockEdp.barHeight + dockEdp.bottomGap)
                 screen: screenForMonitor("eDP-1")
                 WlrLayershell.namespace: "plank-wayland-dock-edp"
-                mask: Region { item: dockEdpInputArea }
+                mask: Region {
+                    item: dockEdpInputAreaEdge
+                    Region { item: dockEdpInputArea }
+                }
+
+                // Only the bottom strip and visible dock accept pointer input.
+                Item {
+                    id: dockEdpInputAreaEdge
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: (dockEdp.autoHide || dockEdp.smartHideEnabled) ? dockEdp.edgeTriggerHeight : 0
+                    z: 2
+
+                    HoverHandler {
+                        id: dockEdpInputAreaEdgeHover
+                        enabled: dockEdpInputAreaEdge.height > 0
+                        blocking: false
+                    }
+                }
 
                 Item {
                     id: dockEdpInputArea
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.bottom: parent.bottom
                     width: dockEdp.barWidth
-                    height: dockEdp.barHeight
+                    height: dockEdp.hidden ? 0 : dockEdp.barHeight + dockEdp.bottomGap
+                    z: 1
+
+                    HoverHandler {
+                        id: dockEdpInputAreaHover
+                        blocking: false
+                    }
                 }
 
                 Dock {
                     id: dockEdp
                     anchors.horizontalCenter: parent.horizontalCenter
+                    surfaceHovered: dockEdpInputAreaEdgeHover.hovered || dockEdpInputAreaHover.hovered
                     apps: windowModel.dockApps.length > 0 ? windowModel.dockApps : windowModel.pinnedDockApps
                     settings: settingsStore
                     smartHideEnabled: settingsStore.smartHide
@@ -377,7 +439,7 @@ ShellRoot {
                     onActivate: app => {
                         if (app && app.running && app.toplevels && app.toplevels.length > 1) {
                             root.menuApp = app
-                            root.menuX = dockWindowEdp.x + dockEdp.menuX
+                            root.menuX = dockWindowEdp.x + dockEdp.x + dockEdp.menuX
                             root.menuBottomMargin = dockEdp.menuBottomMargin
                             root.menuOpen = true
                         } else {
@@ -391,7 +453,9 @@ ShellRoot {
                         root.menuOpen = true
                     }
                     onCloseMenuRequested: root.menuOpen = false
-                    onLaunch: root.launcherOpen = !root.launcherOpen
+                    onLaunch: Quickshell.execDetached([
+    Quickshell.env("HOME") + "/.local/bin/walker-themed"
+])
                 }
             }
         }
@@ -438,13 +502,15 @@ ShellRoot {
         }
 
         margins {
-            bottom: root.menuBottomMargin
-            left: root.menuX
+            bottom: Math.round(root.menuBottomMargin)
+            left: Math.round(root.menuX)
         }
 
         color: "transparent"
         implicitWidth: dockMenu.implicitWidth
-        implicitHeight: dockMenu.implicitHeight
+        // Allow tooltips to render above the menu without moving it upward.
+        implicitHeight: Math.ceil(dockMenu.implicitHeight + dockMenu.tooltipHeadroom)
+        mask: Region { item: dockMenu }
         exclusiveZone: 0
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
@@ -452,7 +518,11 @@ ShellRoot {
 
         DockMenu {
             id: dockMenu
-            anchors.fill: parent
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: implicitHeight
+            opened: root.menuOpen
             app: root.menuApp
             settings: settingsStore
             onPinRequested: app => pinnedApps.pin(app)

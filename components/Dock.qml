@@ -16,14 +16,35 @@ Item {
     property bool smartHideEnabled: false
     property bool isOverlapped: false
     property bool menuOpen: false
-    property bool hidden: (autoHide || (smartHideEnabled && isOverlapped)) && !dockHovered && !menuOpen
+    // Keep the screen-edge trigger stationary while the visible dock slides.
+    readonly property int bottomGap: 12
+    readonly property int edgeTriggerHeight: 3
+    property bool surfaceHovered: false
+    property bool revealed: false
+    property bool hidden: (autoHide || (smartHideEnabled && isOverlapped)) && !revealed && !menuOpen
+
+    onSurfaceHoveredChanged: {
+        if (surfaceHovered) {
+            hideDelay.stop()
+            revealed = true
+        } else {
+            hideDelay.restart()
+        }
+    }
+
+    Timer {
+        id: hideDelay
+        interval: 300
+        repeat: false
+        onTriggered: if (!root.surfaceHovered) root.revealed = false
+    }
     property var menuApp: null
     readonly property real menuX: menuApp ? Math.max(0, Math.min(dockMaxWidth - 260, itemCenterForApp(menuApp) - 130)) : 0
-    readonly property real menuBottomMargin: barHeight + 4 + 12
+    readonly property real menuBottomMargin: barHeight + bottomGap + 16
 
     readonly property real baseItemSize: settings ? settings.iconSize : DockSettings.dock.iconSize
     readonly property bool zoomEnabled: settings ? settings.zoomEnabled : DockSettings.dock.zoomEnabled
-    readonly property real zoomPercent: (settings ? settings.zoomPercent : DockSettings.dock.zoomPercent) / 100
+    readonly property real zoomPercent: zoomEnabled ? (settings ? settings.zoomPercent : DockSettings.dock.zoomPercent) / 100 : 1
     readonly property real maxItemSize: baseItemSize * zoomPercent
     readonly property real dockSpacing: DockSettings.dock.itemPadding * baseItemSize / 10
     readonly property real dockPadding: Math.max(0, DockSettings.dock.horizPadding * baseItemSize / 10) + 28
@@ -74,7 +95,8 @@ Item {
 
     implicitWidth: dockMaxWidth
     implicitHeight: baseItemSize + topPadding + bottomPadding
-    y: (layerHeight - height) + (hidden ? DockSettings.dock.hideOffset : 0)
+    y: parent.height - height - bottomGap
+        + (hidden ? Math.max(DockSettings.dock.hideOffset, barHeight + bottomGap + 2) : 0)
 
     // The transparent layer stays larger so magnified icons have room above the bar.
 
@@ -164,6 +186,7 @@ Item {
             id: launcherComp
             LauncherItem {
                 settings: root.settings
+                menuOpen: root.menuOpen
                 dockMouseX: root.dockMouseX
                 zoomProgress: root.zoomProgress
                 dockWidth: root.width

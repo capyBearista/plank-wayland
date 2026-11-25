@@ -2,11 +2,37 @@
 
 var items = [
     {
-        "appId": "com.google.Chrome",
-        "name": "Chrome",
-        "icon": "google-chrome",
-        "command": "google-chrome",
-        "pinned": true
+        "appId": "org.mozilla.firefox",
+        "desktopId": "org.mozilla.firefox",
+        "name": "Firefox",
+        "icon": "firefox",
+        "iconAliases": [],
+        "fallback": "O",
+        "command": [
+            "firefox"
+        ]
+    },
+    {
+        "appId": "org.kde.kwrite",
+        "desktopId": "org.kde.kwrite",
+        "name": "KWrite",
+        "icon": "kwrite",
+        "iconAliases": [],
+        "fallback": "O",
+        "command": [
+            "kwrite"
+        ]
+    },
+    {
+        "appId": "dev.zed.Zed-Preview",
+        "desktopId": "dev.zed.Zed-Preview",
+        "name": "Zed Preview",
+        "icon": "/home/arjun/.local/zed-preview.app/share/icons/hicolor/512x512/apps/zed.png",
+        "iconAliases": [],
+        "fallback": "D",
+        "command": [
+            "/home/arjun/.local/zed-preview.app/bin/zed"
+        ]
     },
     {
         "appId": "com.mitchellh.ghostty",
@@ -16,50 +42,25 @@ var items = [
         "iconAliases": [],
         "fallback": "C",
         "command": [
-            "/usr/bin/ghostty",
+            "ghostty",
             "--gtk-single-instance=true"
         ]
     },
     {
-        "appId": "cursor",
-        "desktopId": "cursor",
-        "name": "Cursor",
-        "icon": "co.anysphere.cursor",
+        "appId": "whatrust",
+        "desktopId": "io.github.karem505.whatRust",
+        "name": "whatRust",
+        "icon": "io.github.karem505.whatRust",
         "iconAliases": [],
-        "fallback": "C",
-        "command": [
-            "/usr/share/cursor/cursor"
-        ]
-    },
-    {
-        "appId": "chrome-hnpfjngllnobngcgfapefoaidbinmjnm-Profile_6",
-        "desktopId": "chrome-hnpfjngllnobngcgfapefoaidbinmjnm-Profile_6",
-        "name": "WhatsApp Web",
-        "icon": "chrome-hnpfjngllnobngcgfapefoaidbinmjnm-Profile_6",
-        "iconAliases": [],
-        "fallback": "C",
-        "command": [
-            "/opt/google/chrome/google-chrome",
-            "--profile-directory=Profile 6",
-            "--app-id=hnpfjngllnobngcgfapefoaidbinmjnm"
-        ]
-    },
-    {
-        "appId": "org.telegram.desktop",
-        "desktopId": "org.telegram.desktop",
-        "name": "Telegram",
-        "icon": "org.telegram.desktop",
-        "iconAliases": [],
-        "fallback": "O",
+        "fallback": "W",
         "command": [
             "/usr/bin/flatpak",
             "run",
             "--branch=stable",
             "--arch=x86_64",
-            "--command=Telegram",
+            "--command=whatrust",
             "--file-forwarding",
-            "org.telegram.desktop",
-            "--",
+            "io.github.karem505.whatRust",
             "@@u",
             "@@"
         ]

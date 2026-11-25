@@ -8,6 +8,7 @@ import "../i18n.js" as I18n
 Rectangle {
     id: root
 
+    property bool opened: false
     property var app: null
     property var settings: null
     readonly property var theme: settings ? settings.theme : DockSettings.theme
@@ -35,7 +36,13 @@ Rectangle {
         repeat: false
         onTriggered: root.closeRequested()
     }
-    Component.onCompleted: autoCloseTimer.restart()
+    onOpenedChanged: {
+        if (opened) autoCloseTimer.restart()
+        else autoCloseTimer.stop()
+    }
+    onAppChanged: if (opened) autoCloseTimer.restart()
+
+    readonly property int tooltipHeadroom: 36
 
     implicitWidth: 280
     implicitHeight: content.implicitHeight + 16
@@ -86,11 +93,6 @@ Rectangle {
                         root.closeRequested()
                     }
                 }
-                DockTooltip {
-                    text: "Nova janela"
-                    shown: newWindowArea.containsMouse
-                    settings: root.settings
-                }
             }
 
             Text {
@@ -115,11 +117,6 @@ Rectangle {
                         root.closeRequested()
                     }
                 }
-                DockTooltip {
-                    text: root.app && root.app.pinned ? t("pinned") : t("pin")
-                    shown: pinArea.containsMouse
-                    settings: root.settings
-                }
             }
 
             Text {
@@ -138,11 +135,6 @@ Rectangle {
                     onExited: autoCloseTimer.restart()
                     onClicked: root.settingsRequested()
                 }
-                DockTooltip {
-                    text: t("settings")
-                    shown: settingsArea.containsMouse
-                    settings: root.settings
-                }
             }
 
             Text {
@@ -160,11 +152,6 @@ Rectangle {
                     onEntered: autoCloseTimer.stop()
                     onExited: autoCloseTimer.restart()
                     onClicked: root.closeRequested()
-                }
-                DockTooltip {
-                    text: t("close")
-                    shown: closeArea.containsMouse
-                    settings: root.settings
                 }
             }
         }
@@ -227,5 +214,17 @@ Rectangle {
                 }
             }
         }
+    }
+    // Center one tooltip within the popup's width so edge buttons cannot clip it.
+    DockTooltip {
+        text: newWindowArea.containsMouse ? "New window"
+            : pinArea.containsMouse ? (root.app && root.app.pinned ? root.t("unpinFromDock") : root.t("pinToDock"))
+            : settingsArea.containsMouse ? root.t("settings")
+            : closeArea.containsMouse ? root.t("close") : ""
+        shown: root.opened && text.length > 0
+        settings: root.settings
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.top
+        anchors.bottomMargin: 5
     }
 }

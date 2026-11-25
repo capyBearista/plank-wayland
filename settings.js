@@ -2,31 +2,31 @@
 
 var dock = {
     "iconSize": 36,
-    "zoomEnabled": true,
+    "zoomEnabled": false,
     "followSystemIconTheme": true,
-    "zoomPercent": 150,
+    "zoomPercent": 100,
     "itemPadding": 2.5,
     "horizPadding": 0,
     "topPadding": -11,
     "bottomPadding": 2.5,
-    "indicatorSize": 5,
+    "indicatorSize": 4,
     "zoomDuration": 120,
     "clickTime": 300,
     "slideTime": 220,
     "fadeTime": 160,
     "launchBounceTime": 420,
-    "launchBounceHeight": 0.625,
+    "launchBounceHeight": 0,
     "urgentBounceTime": 600,
     "urgentBounceHeight": 1.6666666666666667,
-    "autoHide": false,
+    "autoHide": true,
     "smartHide": false,
     "hideOffset": 100,
     "menuBottomMargin": 118
 }
 
-var styleName = "macos-dark"
+var styleName = "clear-glass"
 
-var uiLanguage = "pt-BR"
+var uiLanguage = "en"
 
 var launcher = {
     "layoutMode": "compact",
@@ -159,13 +159,12 @@ var styles = {
         "separatorColor": "#66ffffff"
     },
     "clear-glass": {
-        "radius": 30,
+        "radius": 16,
         "borderWidth": 1,
         "backgroundColor": "#22ffffff",
         "innerBackgroundColor": "#08000000",
-        "borderColor": "#99ffffff",
+        "borderColor": "#77ffffff",
         "shadowColor": "#33000000",
-        "runningItemColor": "#16ffffff",
         "textColor": "white",
         "tooltipColor": "#aa111111",
         "tooltipBorderColor": "#66ffffff",
@@ -173,9 +172,10 @@ var styles = {
         "menuBorderColor": "#88ffffff",
         "menuItemColor": "#262626",
         "menuItemHoverColor": "#3c3c3c",
-        "indicatorColor": "#ffffffff",
+        "indicatorColor": "#88ffffff",
         "indicatorStyle": "line",
-        "pinnedBadgeColor": "#ffd60a",
+        "pinnedBadgeColor": "#00000000",
+        "runningItemColor": "#00000000",
         "separatorColor": "#88ffffff"
     },
     "black-glass": {

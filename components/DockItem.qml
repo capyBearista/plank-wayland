@@ -53,7 +53,10 @@ Rectangle {
     property real centerPosition: staticCenter + (dockMouseX > staticCenter ? -offset : offset)
     property real lift: baseItemSize * zoom / 2 - baseItemSize / 2
     property real bounceLift: 0
-    readonly property real hitHorizontalMargin: Math.ceil(Math.max(6, (baseItemSize * zoom - baseItemSize) / 2 + 8))
+    // Fixed-size icons must not share overlapping mouse hit areas.
+    readonly property real hitHorizontalMargin: zoomPercent <= 1
+        ? Math.floor(Math.max(0, dockSpacing / 2))
+        : Math.ceil(Math.max(6, (baseItemSize * zoom - baseItemSize) / 2 + 8))
     readonly property real hitTopMargin: Math.ceil(Math.max(6, lift + bounceLift + (baseItemSize * zoom - baseItemSize) + 8))
 
     function trigger(button) {
@@ -92,7 +95,7 @@ Rectangle {
     x: centerPosition - width / 2
     y: layerHeight - baseItemSize - bottomPadding
     z: zoom
-    opacity: root.app.running ? 1.0 : (root.app.pinned ? 0.55 : 1.0)
+    opacity: 1.0
     scale: 1
     transformOrigin: Item.Bottom
     radius: 18
@@ -169,10 +172,9 @@ Rectangle {
         active: root.app.running
         itemZoom: root.zoom
         settings: root.settings
-        customColor: root.app.running ? iconImage.palette.highlight : "transparent"
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: 4
+        anchors.bottomMargin: 1
     }
 
     Timer {
@@ -184,9 +186,18 @@ Rectangle {
         }
     }
 
+    // Invalidate old hover state when a popup takes or releases pointer input.
+    onMenuOpenChanged: {
+        root.hovered = false
+        hoverMenuTimer.stop()
+    }
+
     DockTooltip {
         text: root.app.name
-        shown: root.hovered && root.zoom > 1.15 && !root.menuOpen
+        // The shared dock pointer gives at most one item ownership of the label.
+        shown: !root.launcherIcon && root.hovered && hitMouse.containsMouse && !root.menuOpen
+            && root.dockMouseX >= root.staticCenter - root.baseStep / 2
+            && root.dockMouseX < root.staticCenter + root.baseStep / 2
         settings: root.settings
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.top
@@ -223,7 +234,10 @@ Rectangle {
                 root.closeMenuRequested()
             }
         }
-        onPositionChanged: function(mouse) { root.reportPointer(mouse.x) }
+        onPositionChanged: function(mouse) {
+            if (!root.menuOpen) root.hovered = true
+            root.reportPointer(mouse.x)
+        }
         onExited: {
             root.hovered = false
             hoverMenuTimer.stop()

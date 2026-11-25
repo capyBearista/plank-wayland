@@ -274,6 +274,7 @@ Item {
                 const win = wins[i]
                 const appId = appIdForToplevel(win)
                 if (!appId) continue
+                if (normalizeId(appId) === "xwaylandvideobridge") continue
                 const key = normalizeId(appId)
                 if (!grouped[key]) grouped[key] = { appId: appId, toplevels: [] }
                 grouped[key].toplevels.push(win)

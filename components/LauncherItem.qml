@@ -6,7 +6,7 @@ DockItem {
 
     // Custom app structure for the launcher
     app: {
-        "name": "Launchpad",
+        "name": "Applications",
         "appId": "launchpad",
         "icon": "",
         "launcherIcon": true,
@@ -19,6 +19,9 @@ DockItem {
 
     function trigger(button) {
         if (button === Qt.RightButton) return
+
+        root.hovered = false
+        root.pointerExited()
         root.launchRequested()
     }
 }

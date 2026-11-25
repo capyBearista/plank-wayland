@@ -17,7 +17,6 @@ Item {
     height: bubble.height
     opacity: (shown && text.length > 0) ? 1 : 0
     visible: opacity > 0
-    y: shown ? -height - 10 : -height - 6
     enabled: false // Ensure it doesn't intercept mouse events
 
     Rectangle {
