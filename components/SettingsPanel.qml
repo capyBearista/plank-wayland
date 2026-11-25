@@ -177,13 +177,18 @@ C.Pane {
             C.Button { text: "Close"; enabled: !root.store.saving; onClicked: root.cancelAndClose() }
         }
         Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: root.surface }
-        RowLayout {
+        // Isolate the two-pane geometry from the controls' implicit size hints.
+        // A preferred width in a RowLayout is not a hard width constraint.
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 16
+            Layout.minimumWidth: 0
+            Layout.minimumHeight: 0
             ColumnLayout {
-                Layout.preferredWidth: 124
-                Layout.alignment: Qt.AlignTop
+                id: navigation
+                anchors.left: parent.left
+                anchors.top: parent.top
+                width: Math.min(140, Math.floor(parent.width * 0.30))
                 spacing: 5
                 Repeater {
                     model: root.tabs
@@ -199,9 +204,13 @@ C.Pane {
             }
             Flickable {
                 id: scroll
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+                anchors.left: navigation.right
+                anchors.leftMargin: 16
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
                 clip: true
+                flickableDirection: Flickable.VerticalFlick
                 contentWidth: width
                 contentHeight: settingsContent.implicitHeight + 8
                 boundsBehavior: Flickable.StopAtBounds
