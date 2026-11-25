@@ -9,7 +9,10 @@ PanelWindow {
     property var apps: []
     property bool popupOpen: false
     property var menuApp: null
-    readonly property var monitor: screen ? Hyprland.monitorFor(screen) : null
+    readonly property var monitor: {
+        const known = Hyprland.monitors.values
+        return screen && known.length ? Hyprland.monitorFor(screen) : null
+    }
     readonly property var visibleWindows: Array.from(Hyprland.toplevels.values || []).filter(w =>
         w.monitor === monitor && monitor && w.workspace === monitor.activeWorkspace && !(w.wayland && w.wayland.minimized))
     readonly property bool hasFullscreen: visibleWindows.some(w => w.wayland && w.wayland.fullscreen)
@@ -62,13 +65,6 @@ PanelWindow {
         interval: root.settings.dockValues.attentionRevealMs
         repeat: false
         onTriggered: root.attentionHold = false
-    }
-
-    Timer {
-        interval: 750
-        repeat: true
-        running: root.settings.smartHide
-        onTriggered: Hyprland.refreshToplevels()
     }
 
     anchors { left: true; right: true; bottom: true }

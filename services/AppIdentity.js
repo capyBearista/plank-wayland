@@ -8,11 +8,17 @@ function override(value, overrides) {
         if (normalize(candidate) === key && typeof overrides[candidate] === "string" && overrides[candidate].trim()) return overrides[candidate].trim()
     }
     const known = {"obs":"com.obsproject.Studio", "ghostty":"com.mitchellh.ghostty"}
-    return known[key] || String(value || "").trim()
+    return Object.prototype.hasOwnProperty.call(known, key) ? known[key] : String(value || "").trim()
 }
 
 function key(app, overrides) {
     if (!app) return ""
+    for (const raw of [app.appId, app.desktopId, app.canonicalId]) {
+        const norm = normalize(raw)
+        for (const candidate of Object.keys(overrides || {})) {
+            if (norm && normalize(candidate) === norm && typeof overrides[candidate] === "string" && overrides[candidate].trim()) return normalize(overrides[candidate])
+        }
+    }
     return normalize(override(app.canonicalId || app.desktopId || app.appId, overrides))
 }
 

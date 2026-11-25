@@ -17,6 +17,7 @@ Item {
     function canonical(appId) {
         const preferred = Identity.override(appId, overrides)
         const normalized = Identity.normalize(preferred)
+        if (!normalized) return ""
         const pin = pinnedApps.find(p => [p.appId, p.desktopId, p.canonicalId].some(id => Identity.normalize(Identity.override(id, overrides)) === normalized))
         if (pin) return Identity.key(pin, overrides)
         const entry = desktopEntry(preferred)

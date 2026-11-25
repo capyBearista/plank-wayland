@@ -5,6 +5,7 @@ Item {
     id: root
 
     property var apps: []
+    property var itemKeys: [""]
     property var settings: null
     readonly property var theme: settings ? settings.theme : DockSettings.theme
     readonly property color barGradientStart: theme.barGradientStart || theme.backgroundColor || "#44ffffff"
@@ -79,6 +80,18 @@ Item {
         return String((app && (app.canonicalId || app.desktopId || app.appId)) || "").toLowerCase().replace(/\.desktop$/, "")
     }
 
+    function appForKey(key) {
+        return apps.find(app => appKey(app) === key) || {appId: key, name: key, icon: "", fallback: "?", running: false, pinned: false, toplevels: []}
+    }
+
+    function syncItemKeys() {
+        const next = [""].concat(apps.map(appKey))
+        if (JSON.stringify(next) !== JSON.stringify(itemKeys)) {
+            if (dragging) draggingKey = ""
+            itemKeys = next
+        }
+    }
+
     function itemCenterForApp(app) {
         const key = appKey(app)
         const baseStep = baseItemSize + dockSpacing
@@ -129,7 +142,8 @@ Item {
 
     // The transparent layer stays larger so magnified icons have room above the bar.
 
-    onAppsChanged: if (dragging) draggingKey = ""
+    onAppsChanged: syncItemKeys()
+    Component.onCompleted: syncItemKeys()
 
     onDockHoveredChanged: zoomProgress = dockHovered ? 1 : 0
 
@@ -216,15 +230,15 @@ Item {
         }
 
         Repeater {
-            model: [null].concat(root.apps)
+            model: root.itemKeys
 
             Loader {
-                required property var modelData
+                required property string modelData
                 required property int index
 
                 sourceComponent: index === 0 ? launcherComp : itemComp
 
-                property var app: modelData
+                property var entry: root.appForKey(modelData)
                 property int itemIndex: index
             }
         }
@@ -254,7 +268,7 @@ Item {
         Component {
             id: itemComp
             DockItem {
-                app: modelData
+                app: entry
                 settings: root.settings
                 itemIndex: index
                 dockMouseX: root.dockMouseX

@@ -174,6 +174,7 @@ Rectangle {
     }
 
     Rectangle {
+        id: pendingRing
         anchors.fill: iconShell
         radius: 9
         color: "transparent"
@@ -181,7 +182,7 @@ Rectangle {
         border.color: "#e8b45d"
         visible: root.app.pending && !root.app.running
         SequentialAnimation on opacity {
-            running: parent.visible
+            running: pendingRing.visible
             loops: Animation.Infinite
             NumberAnimation { from: 0.3; to: 1; duration: 450 }
             NumberAnimation { from: 1; to: 0.3; duration: 450 }

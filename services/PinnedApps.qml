@@ -79,6 +79,7 @@ Item {
                 root.changed()
             } catch (e) { root.errorMessage = String(e) }
         }
+        onLoadFailed: root.errorMessage = "Could not read pinned applications; using current pins."
         onFileChanged: if (!root.saving) reload()
         onSaved: {
             const latest = JSON.stringify(root.apps, null, 4) + "\n"

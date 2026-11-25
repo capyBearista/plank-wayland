@@ -15,6 +15,8 @@ assert.equal(I.key({appId:"foo",desktopId:"org.foo.App"}), "org.foo.app")
 assert.equal(I.key({appId:"FOO"},{foo:"org.bar.App"}), "org.bar.app")
 assert.equal(I.excluded({appId:"XWaylandVideoBridge"},["xwaylandvideobridge"]), true)
 assert.equal(I.key({appId:"foo",name:"Shared"}), "foo")
+assert.equal(I.key({appId:"foo",canonicalId:"old"},{foo:"new"}), "new")
+assert.equal(I.normalize(I.override("constructor")), "constructor")
 assert.equal(I.key({appId:"bar",name:"Shared"}), "bar")
 const pins = [{appId:"a"},{appId:"b"},{appId:"c"}]
 assert.deepEqual(I.reorder(pins,"a","c").map(p=>p.appId),["b","a","c"])

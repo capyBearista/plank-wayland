@@ -71,7 +71,7 @@ Recovery even if the dock crashes: open the special workspace from a Hyprland te
 
 ```bash
 hyprctl clients
-hyprctl dispatch 'hl.dsp.workspace.toggle_special({ name = "plank-minimized-1" })'
+hyprctl dispatch 'hl.dsp.workspace.toggle_special("plank-minimized-1")'
 ```
 
 Or restore a specific window by replacing the example address and workspace:

@@ -59,14 +59,6 @@ ShellRoot {
         return exec.trim()
     }
 
-    function looksLikeDesktopId(command, app) {
-        const text = String(command || "").trim()
-        if (!text || text.indexOf(" ") >= 0 || text.indexOf("/") >= 0) return false
-        if (text.indexOf(".") >= 0) return true
-        const key = normalizeId(text)
-        return key === normalizeId(app && app.appId) || key === normalizeId(app && app.icon)
-    }
-
     function launchApp(app) {
         if (!app || windowModel.isExcluded(app)) return
         if (settingsStore.dockValues.launchFeedback) windowModel.rememberPendingApp(app.desktopId || app.appId)
@@ -81,18 +73,9 @@ ShellRoot {
         const rawCommand = String((app && app.command) || "")
         const command = cleanedExec(rawCommand)
         if (command) {
-            if (entry && entry.execute && looksLikeDesktopId(command, app)) {
-                entry.execute()
-                return
-            }
             // Legacy explicit command strings are trusted user configuration only.
             if (app.pinned) Quickshell.execDetached(["sh", "-c", command])
             else if (/^[a-zA-Z0-9_./+-]+$/.test(command)) Quickshell.execDetached([command])
-            return
-        }
-
-        if (entry && entry.execute) {
-            entry.execute()
             return
         }
 
@@ -131,7 +114,7 @@ ShellRoot {
     }
 
     onEligibleScreensChanged: {
-        if (popupScreen && !eligibleScreens.includes(popupScreen)) {
+        if ((menuOpen || settingsOpen) && (!popupScreen || !eligibleScreens.includes(popupScreen))) {
             closeMenu()
             settingsOpen = false
             popupScreen = null
@@ -169,6 +152,13 @@ ShellRoot {
             if (next) root.menuApp = next
             else root.closeMenu()
         }
+    }
+
+    Timer {
+        interval: 750
+        repeat: true
+        running: settingsStore.smartHide
+        onTriggered: Hyprland.refreshToplevels()
     }
 
     Variants {

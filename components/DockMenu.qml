@@ -37,10 +37,20 @@ Rectangle {
         onTriggered: root.closeRequested()
     }
     onOpenedChanged: {
-        if (opened) autoCloseTimer.restart()
+        if (opened && !menuHover.hovered) autoCloseTimer.restart()
         else autoCloseTimer.stop()
     }
-    onAppChanged: if (opened) autoCloseTimer.restart()
+    onAppChanged: if (opened && !menuHover.hovered) autoCloseTimer.restart()
+
+    HoverHandler {
+        id: menuHover
+        enabled: root.opened
+        blocking: false
+        onHoveredChanged: {
+            if (hovered) autoCloseTimer.stop()
+            else if (root.opened) autoCloseTimer.restart()
+        }
+    }
 
     readonly property int tooltipHeadroom: 36
 
@@ -86,8 +96,6 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onEntered: autoCloseTimer.stop()
-                    onExited: autoCloseTimer.restart()
                     onClicked: {
                         if (root.app) root.newWindowRequested(root.app)
                         root.closeRequested()
@@ -107,8 +115,6 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onEntered: autoCloseTimer.stop()
-                    onExited: autoCloseTimer.restart()
                     onClicked: {
                         if (root.app) {
                             if (root.app.pinned) root.unpinRequested(root.app)
@@ -131,8 +137,6 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onEntered: autoCloseTimer.stop()
-                    onExited: autoCloseTimer.restart()
                     onClicked: root.settingsRequested()
                 }
             }
@@ -149,8 +153,6 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onEntered: autoCloseTimer.stop()
-                    onExited: autoCloseTimer.restart()
                     onClicked: root.closeRequested()
                 }
             }
@@ -208,8 +210,6 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onEntered: autoCloseTimer.stop()
-                    onExited: autoCloseTimer.restart()
                     onClicked: root.focusWindowRequested(modelData)
                 }
             }

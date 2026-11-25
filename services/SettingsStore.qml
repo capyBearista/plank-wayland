@@ -384,6 +384,7 @@ Item {
         atomicWrites: true
         printErrors: true
         onLoaded: root.loadSettings(false)
+        onLoadFailed: root.errorMessage = "Settings file could not be read; using last valid settings."
         onFileChanged: if (!root.saving) reload()
         onSaved: {
             root.savedText = root.pendingSave
