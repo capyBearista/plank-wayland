@@ -3,11 +3,14 @@ import Quickshell
 import QtQuick
 import "../apps.js" as DockApps
 import "Config.js" as Config
+import "AppIdentity.js" as Identity
 
 Item {
     id: root
 
     property var apps: DockApps.items
+    property var overrides: ({})
+    property string writingText: ""
     readonly property string configDir: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/plank-wayland"
     property bool saving: false
     property string errorMessage: ""
@@ -15,40 +18,22 @@ Item {
 
     signal changed()
 
-    function normalizeId(id) {
-        return String(id || "").toLowerCase().replace(/\.desktop$/, "")
-    }
-
-    function identityKeys(app) {
-        if (!app) return []
-        const keys = []
-        const fields = [app.appId, app.desktopId, app.icon, app.name]
-        const aliases = app.iconAliases || []
-        for (let i = 0; i < fields.length; i++) {
-            const key = normalizeId(fields[i])
-            if (key && keys.indexOf(key) < 0) keys.push(key)
-        }
-        for (let i = 0; i < aliases.length; i++) {
-            const key = normalizeId(aliases[i])
-            if (key && keys.indexOf(key) < 0) keys.push(key)
-        }
-        return keys
-    }
-
     function contains(app) {
-        const keys = identityKeys(app)
-        for (let i = 0; i < apps.length; i++) {
-            const pinnedKeys = identityKeys(apps[i])
-            for (let j = 0; j < keys.length; j++) {
-                if (pinnedKeys.indexOf(keys[j]) >= 0) return true
-            }
-        }
-        return false
+        const key = Identity.key(app, overrides)
+        return key && apps.some(p => Identity.key(p, overrides) === key)
+    }
+
+    function reorder(fromKey, beforeKey) {
+        const next = Identity.reorder(apps, fromKey, beforeKey, overrides)
+        if (next.every((p, i) => p === apps[i])) return
+        apps = next
+        save()
+        changed()
     }
 
     function save() {
         pendingText = JSON.stringify(apps, null, 4) + "\n"
-        if (!saving) { saving = true; file.setText(pendingText) }
+        if (!saving) { saving = true; writingText = pendingText; file.setText(writingText) }
     }
 
     function pin(app) {
@@ -56,6 +41,7 @@ Item {
         const next = apps.slice()
         next.push({
             appId: app.appId,
+            canonicalId: app.canonicalId,
             desktopId: app.desktopId,
             name: app.name,
             icon: app.icon,
@@ -69,8 +55,8 @@ Item {
     }
 
     function unpin(appId) {
-        const normalized = normalizeId(appId)
-        apps = apps.filter(app => normalizeId(app.appId || app.icon || app.name) !== normalized)
+        const normalized = Identity.normalize(appId)
+        apps = apps.filter(app => Identity.key(app, overrides) !== normalized && Identity.normalize(app.appId) !== normalized)
         save()
         changed()
     }
@@ -97,7 +83,7 @@ Item {
         onSaved: {
             const latest = JSON.stringify(root.apps, null, 4) + "\n"
             root.saving = false
-            if (latest !== text()) root.save()
+            if (latest !== root.writingText) root.save()
         }
         onSaveFailed: {
             root.saving = false

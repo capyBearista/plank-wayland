@@ -31,6 +31,11 @@ Rectangle {
     property real bottomPadding: 0
     property real layerHeight: 118
     property bool hovered: false
+    property bool dragEnabled: false
+    property bool dragging: false
+    signal dragStarted(var app, real dockX)
+    signal dragMoved(real dockX)
+    signal dragFinished(real dockX, bool accepted)
     property bool menuOpen: false
     readonly property bool hasMultipleWindows: root.app && root.app.running && root.app.toplevels && root.app.toplevels.length > 1
 
@@ -65,7 +70,7 @@ Rectangle {
             return
         }
 
-        launchBounce.restart()
+        if ((root.settings ? root.settings.dockValues.launchBounceHeight : DockSettings.dock.launchBounceHeight) > 0) launchBounce.restart()
         root.activate(root.app)
     }
 
@@ -99,7 +104,7 @@ Rectangle {
     scale: 1
     transformOrigin: Item.Bottom
     radius: 18
-    color: app.running ? theme.runningItemColor : "transparent"
+    color: app.urgent ? "#55e8a035" : (dragging ? "#5580aaff" : (app.running ? theme.runningItemColor : "transparent"))
 
     Item {
         id: iconShell
@@ -168,6 +173,21 @@ Rectangle {
 
     }
 
+    Rectangle {
+        anchors.fill: iconShell
+        radius: 9
+        color: "transparent"
+        border.width: 2
+        border.color: "#e8b45d"
+        visible: root.app.pending && !root.app.running
+        SequentialAnimation on opacity {
+            running: parent.visible
+            loops: Animation.Infinite
+            NumberAnimation { from: 0.3; to: 1; duration: 450 }
+            NumberAnimation { from: 1; to: 0.3; duration: 450 }
+        }
+    }
+
     Indicator {
         active: root.app.running
         itemZoom: root.zoom
@@ -179,7 +199,7 @@ Rectangle {
 
     Timer {
         id: hoverMenuTimer
-        interval: 400
+        interval: root.settings ? root.settings.dockValues.hoverMenuDelayMs : 400
         repeat: false
         onTriggered: {
             if (root.hasMultipleWindows) root.openMenu(root.app)
@@ -234,7 +254,16 @@ Rectangle {
                 root.closeMenuRequested()
             }
         }
+        property real pressX: 0
+        property real pressY: 0
+        property bool moved: false
         onPositionChanged: function(mouse) {
+            if (pressed && root.dragEnabled && (pressedButtons & Qt.LeftButton) && !moved && Math.hypot(mouse.x - pressX, mouse.y - pressY) > 8) {
+                moved = true
+                hoverMenuTimer.stop()
+                root.dragStarted(root.app, root.x + x + mouse.x)
+            }
+            if (moved) root.dragMoved(root.x + x + mouse.x)
             if (!root.menuOpen) root.hovered = true
             root.reportPointer(mouse.x)
         }
@@ -244,8 +273,20 @@ Rectangle {
             root.pointerExited()
         }
         onPressed: function(mouse) {
-            root.trigger(mouse.button)
+            pressX = mouse.x
+            pressY = mouse.y
+            moved = false
+            hoverMenuTimer.stop()
             mouse.accepted = true
+        }
+        onReleased: function(mouse) {
+            if (moved) root.dragFinished(root.x + x + mouse.x, Math.abs(mouse.y - pressY) < root.baseItemSize * 1.5)
+            else if (containsMouse) root.trigger(mouse.button)
+            moved = false
+        }
+        onCanceled: {
+            if (moved) root.dragFinished(0, false)
+            moved = false
         }
     }
 

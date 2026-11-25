@@ -1,12 +1,24 @@
 import Quickshell
 import Quickshell.Hyprland
 import QtQuick
+import "AppIdentity.js" as Identity
 
 Item {
     id: root
 
     property var pinnedApps: []
-    readonly property var pinnedDockApps: pinnedApps.map(appFromPinned)
+    property var settings: null
+    readonly property var options: settings ? settings.dockValues : ({})
+    readonly property var overrides: options.identityOverrides || ({})
+    readonly property var excludedApps: options.excludedApps || ["xwaylandvideobridge"]
+    readonly property var pinnedDockApps: pinnedApps.map(appFromPinned).filter(app => !isExcluded(app))
+    onOptionsChanged: { entryCache = ({}); scheduleUpdate(false) }
+    function isExcluded(app) { return Identity.excluded(app, excludedApps, overrides) }
+    function canonical(appId) {
+        const preferred = Identity.override(appId, overrides)
+        const entry = desktopEntry(preferred)
+        return Identity.normalize(entry && entry.id ? entry.id : preferred)
+    }
     property var dockApps: pinnedDockApps
     property bool ready: false
     property string modelSignature: ""
@@ -15,7 +27,7 @@ Item {
     property int refreshRetryCount: 0
     property var entryCache: ({})
     property var pendingApps: ({})
-    readonly property int pendingAppTtl: 2500
+    readonly property int pendingAppTtl: options.launchTimeoutMs || 10000
 
     onPinnedAppsChanged: scheduleUpdate(false)
 
@@ -24,7 +36,7 @@ Item {
     Component.onCompleted: update()
 
     function normalizeId(id) {
-        return String(id || "").toLowerCase().replace(/\.desktop$/, "")
+        return Identity.normalize(id)
     }
 
     function appIdForToplevel(toplevel) {
@@ -85,48 +97,24 @@ Item {
 
     function entryMatchesAppId(entry, appId) {
         const id = normalizeId(appId)
-        const values = [
-            entryValue(entry, ["id", "desktopId"]),
-            entryValue(entry, ["name"]),
-            entryValue(entry, ["icon"]),
-            entryValue(entry, ["startupWmClass", "startupWMClass", "startupClass", "wmClass"]),
-            executableNameFromEntry(entry)
-        ]
-
-        for (let i = 0; i < values.length; i++) {
-            if (normalizeId(values[i]) === id) return true
-        }
-        return false
+        return id && [entryValue(entry, ["id", "desktopId"]), entryValue(entry, ["startupWmClass", "startupWMClass", "startupClass", "wmClass"])].some(value => normalizeId(value) === id)
     }
 
     function scanDesktopEntry(appId) {
-        try {
-            const entries = DesktopEntries.applications.values || []
-            for (let i = 0; i < entries.length; i++) {
-                const entry = entries[i]
-                if (entryMatchesAppId(entry, appId)) return entry
-            }
-        } catch (e) {}
-        return null
+        const entries = DesktopEntries.applications.values || []
+        const matches = entries.filter(entry => entryMatchesAppId(entry, appId))
+        return matches.length === 1 ? matches[0] : null
     }
 
     function desktopEntry(appId) {
         if (!appId) return null
-        const cacheKey = String(appId).toLowerCase()
+        const preferred = Identity.override(appId, overrides)
+        const cacheKey = preferred
         if (entryCache[cacheKey] !== undefined) return entryCache[cacheKey]
-
-        const ids = desktopEntryIds(appId)
-        let foundEntry = null
-        for (let i = 0; i < ids.length; i++) {
-            const id = ids[i]
-            try {
-                foundEntry = DesktopEntries.heuristicLookup(id) || DesktopEntries.byId(id)
-                if (foundEntry) break
-            } catch (e) {}
-        }
-        if (!foundEntry) foundEntry = scanDesktopEntry(appId)
-        entryCache[cacheKey] = foundEntry
-        return foundEntry
+        let entry = null
+        try { entry = DesktopEntries.byId(preferred) || DesktopEntries.byId(preferred.replace(/\.desktop$/, "")) || scanDesktopEntry(preferred) } catch (e) {}
+        entryCache[cacheKey] = entry
+        return entry
     }
 
     function iconForAppId(appId) {
@@ -168,10 +156,11 @@ Item {
     }
 
     function appFromId(appId, toplevels, pinned, pending) {
-        const entry = pending ? null : desktopEntry(appId)
+        const entry = desktopEntry(appId)
         const title = toplevels.length > 0 ? (toplevels[0].title || appId) : appId
         return {
             appId: appId,
+            canonicalId: canonical(appId),
             desktopId: entry && entry.id ? entry.id : "",
             name: entry && entry.name ? entry.name : title,
             icon: (entry && entry.icon ? entry.icon : "") || iconForAppId(appId) || appId,
@@ -179,7 +168,9 @@ Item {
             command: entryCommand(entry, appId),
             fallback: appId.length > 0 ? appId[0].toUpperCase() : "?",
             pinned: pinned,
-            running: pending || toplevels.length > 0,
+            running: toplevels.length > 0,
+            urgent: toplevels.some(w => w.urgent && !w.activated),
+            active: toplevels.some(w => w.activated),
             pending: !!pending,
             toplevels: toplevels
         }
@@ -190,6 +181,7 @@ Item {
         const aliases = pinned.iconAliases || iconAliasesForAppId(appId)
         return {
             appId: appId,
+            canonicalId: Identity.key(pinned, overrides),
             desktopId: pinned.desktopId || "",
             name: pinned.name || appId,
             icon: aliases.length > 0 ? aliases[0] : (pinned.icon || appId),
@@ -198,6 +190,8 @@ Item {
             fallback: pinned.fallback || (appId.length > 0 ? appId[0].toUpperCase() : "?"),
             pinned: true,
             running: false,
+            urgent: false,
+            active: false,
             pending: false,
             toplevels: []
         }
@@ -220,7 +214,7 @@ Item {
     }
 
     function appSignature(app) {
-        return [app.appId, app.desktopId, app.name, app.icon, app.command, app.pinned, app.running, app.pending, toplevelSignature(app.toplevels)].join("|")
+        return [app.appId, app.desktopId, app.name, app.icon, app.command, app.canonicalId, app.pinned, app.running, app.pending, app.urgent, app.active, app.toplevels.map(w => [toplevelId(w, 0), w.title, w.urgent, w.activated, w.monitor ? w.monitor.name : "", w.wayland ? w.wayland.minimized : false].join(":")).join(",")].join("|")
     }
 
     function rawEventName(event) {
@@ -240,13 +234,15 @@ Item {
     }
 
     function rememberPendingApp(appId) {
-        const key = normalizeId(appId)
-        if (!key) return
+        const key = canonical(appId)
+        if (!key || isExcluded({appId: appId, canonicalId: key})) return
 
         const next = ({})
         for (const existing in pendingApps) next[existing] = pendingApps[existing]
         next[key] = { appId: appId, addedAt: Date.now() }
         pendingApps = next
+        pendingTimer.restart()
+        scheduleUpdate(false)
     }
 
     function scheduleRefreshRetries(count) {
@@ -274,8 +270,8 @@ Item {
                 const win = wins[i]
                 const appId = appIdForToplevel(win)
                 if (!appId) continue
-                if (normalizeId(appId) === "xwaylandvideobridge") continue
-                const key = normalizeId(appId)
+                const key = canonical(appId)
+                if (isExcluded({appId: appId, canonicalId: key})) continue
                 if (!grouped[key]) grouped[key] = { appId: appId, toplevels: [] }
                 grouped[key].toplevels.push(win)
             }
@@ -285,7 +281,7 @@ Item {
         const nextPending = ({})
         for (const key in pendingApps) {
             const pending = pendingApps[key]
-            if (!pending || grouped[key]) continue
+            if (!pending || grouped[key] || isExcluded({appId: pending.appId, canonicalId: key})) continue
             if (now - pending.addedAt > pendingAppTtl) continue
             grouped[key] = { appId: pending.appId, toplevels: [], pending: true }
             nextPending[key] = pending
@@ -312,44 +308,23 @@ Item {
 
         for (let i = 0; i < pinnedApps.length; i++) {
             const pinned = pinnedApps[i]
-            const appId = pinned.appId || pinned.icon || pinned.name
-            const key = normalizeId(appId)
-            // Try multiple keys to find a match (pinned may use desktopId while running uses appId)
-            let running = grouped[key]
-            if (!running) {
-                // Also try matching via desktopEntry lookup
-                const entry = desktopEntry(appId)
-                if (entry && entry.id) {
-                    const entryKey = normalizeId(entry.id)
-                    running = grouped[entryKey]
-                }
-            }
-            if (!running) {
-                // Search by matching any pinned identity to any grouped key
-                const pinnedKeys = [normalizeId(appId), normalizeId(pinned.icon), normalizeId(pinned.name), normalizeId(pinned.desktopId)].filter(k => k)
-                for (const groupedKey in grouped) {
-                    if (pinnedKeys.indexOf(groupedKey) >= 0) {
-                        running = grouped[groupedKey]
-                        break
-                    }
-                }
-            }
+            const base = appFromPinned(pinned)
+            const key = base.canonicalId
+            if (!key || used[key] || isExcluded(base)) continue
+            const running = grouped[key] || grouped[canonical(pinned.appId)]
             if (running) {
-                result.push(appFromId(running.appId, running.toplevels, true, !!running.pending))
-                // Mark all related keys as used
-                for (const groupedKey in grouped) {
-                    if (normalizeId(running.appId) === groupedKey) used[groupedKey] = true
-                }
-            } else {
-                result.push(appFromPinned(pinned))
-            }
+                const live = appFromId(running.appId, running.toplevels, true, !!running.pending)
+                result.push(Object.assign({}, base, { running: live.running, pending: live.pending, urgent: live.urgent, active: live.active, toplevels: live.toplevels }))
+                used[canonical(running.appId)] = true
+            } else result.push(base)
             used[key] = true
         }
 
         for (const key in grouped) {
             if (!used[key]) {
                 const running = grouped[key]
-                result.push(appFromId(running.appId, running.toplevels, false, !!running.pending))
+                const app = appFromId(running.appId, running.toplevels, false, !!running.pending)
+                if (!isExcluded(app)) result.push(app)
             }
         }
 
@@ -389,8 +364,35 @@ Item {
                 root.scheduleRefreshRetries(2)
                 return
             }
-            // Focus and move events do not change the dock app list; avoid rebuilding on every switch.
+            if (/activewindow|urgent|movewindow|windowtitle|fullscreen/.test(name)) root.scheduleUpdate(false)
         }
+    }
+
+    // Observe live properties even when the object list itself is unchanged.
+    Repeater {
+        model: Hyprland.toplevels
+        delegate: Item {
+            required property var modelData
+            Connections {
+                target: modelData
+                function onUrgentChanged() { root.scheduleUpdate(false) }
+                function onActivatedChanged() { root.scheduleUpdate(false) }
+                function onTitleChanged() { root.scheduleUpdate(false) }
+                function onMonitorChanged() { root.scheduleUpdate(false) }
+            }
+            Connections {
+                target: modelData ? modelData.wayland : null
+                function onMinimizedChanged() { root.scheduleUpdate(false) }
+            }
+        }
+    }
+
+    Timer {
+        id: pendingTimer
+        interval: 250
+        repeat: true
+        running: Object.keys(root.pendingApps).length > 0
+        onTriggered: root.scheduleUpdate(false)
     }
 
     Timer {

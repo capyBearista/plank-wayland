@@ -16,12 +16,16 @@ Item {
     property bool smartHideEnabled: false
     property bool isOverlapped: false
     property bool menuOpen: false
+    property string draggingKey: ""
+    property real dragX: 0
+    readonly property bool dragging: draggingKey !== ""
+    signal reorderRequested(string fromKey, string beforeKey)
     // Keep the screen-edge trigger stationary while the visible dock slides.
     readonly property int bottomGap: settings ? settings.dockValues.bottomGap : DockSettings.dock.bottomGap
     readonly property int edgeTriggerHeight: settings ? settings.dockValues.edgeTriggerHeight : DockSettings.dock.edgeTriggerHeight
     property bool surfaceHovered: false
     property bool revealed: false
-    property bool hidden: (autoHide || (smartHideEnabled && isOverlapped)) && !revealed && !menuOpen
+    property bool hidden: (autoHide || (smartHideEnabled && isOverlapped)) && !revealed && !menuOpen && !dragging
 
     onSurfaceHoveredChanged: {
         if (surfaceHovered) {
@@ -70,7 +74,7 @@ Item {
     signal launch()
 
     function appKey(app) {
-        return String((app && (app.appId || app.icon || app.name)) || "").toLowerCase().replace(/\.desktop$/, "")
+        return String((app && (app.canonicalId || app.desktopId || app.appId)) || "").toLowerCase().replace(/\.desktop$/, "")
     }
 
     function itemCenterForApp(app) {
@@ -78,9 +82,32 @@ Item {
         const baseStep = baseItemSize + dockSpacing
         const baseStart = (dockMaxWidth - dockItemsWidth) / 2
         for (let i = 0; i < apps.length; i++) {
-            if (appKey(apps[i]) === key) return baseStart + i * baseStep + baseItemSize / 2
+            if (appKey(apps[i]) === key) return baseStart + (i + 1) * baseStep + baseItemSize / 2
         }
         return dockMaxWidth / 2
+    }
+
+    function beginDrag(app, x) {
+        if (!app.pinned || !appKey(app)) return
+        draggingKey = appKey(app)
+        dragX = x
+        closeMenuRequested()
+    }
+
+    function finishDrag(x, accepted) {
+        if (!dragging) return
+        const from = draggingKey
+        draggingKey = ""
+        if (!accepted || x < 0 || x > width) return
+        const pins = apps.filter(app => app.pinned && appKey(app) !== from)
+        const start = (width - dockItemsWidth) / 2
+        const step = baseItemSize + dockSpacing
+        let before = ""
+        for (const pin of pins) {
+            const index = apps.findIndex(app => appKey(app) === appKey(pin))
+            if (x < start + (index + 1) * step + baseItemSize / 2) { before = appKey(pin); break }
+        }
+        reorderRequested(from, before)
     }
 
     function updatePointer(mouseX) {
@@ -99,6 +126,8 @@ Item {
         + (hidden ? Math.max((root.settings ? root.settings.dockValues.hideOffset : DockSettings.dock.hideOffset), barHeight + bottomGap + 2) : 0)
 
     // The transparent layer stays larger so magnified icons have room above the bar.
+
+    onAppsChanged: if (dragging && !apps.some(app => appKey(app) === draggingKey && app.pinned)) draggingKey = ""
 
     onDockHoveredChanged: zoomProgress = dockHovered ? 1 : 0
 
@@ -221,7 +250,12 @@ Item {
                 dockItemsWidth: root.dockItemsWidth
                 bottomPadding: root.bottomPadding
                 layerHeight: root.layerHeight
-                menuOpen: root.menuOpen
+                menuOpen: root.menuOpen || root.dragging
+                dragEnabled: root.settings && root.settings.dockValues.dragReorder && app.pinned
+                dragging: root.draggingKey === root.appKey(app)
+                onDragStarted: (app, x) => root.beginDrag(app, x)
+                onDragMoved: x => root.dragX = x
+                onDragFinished: (x, accepted) => root.finishDrag(x, accepted)
                 onActivate: app => root.activate(app)
                 onOpenMenu: app => root.openMenu(app)
                 onCloseMenuRequested: root.closeMenuRequested()

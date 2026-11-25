@@ -17,123 +17,14 @@ ShellRoot {
     property real menuX: 0
     property real menuBottomMargin: DockSettings.dock.menuBottomMargin
 
-    function focusToplevel(win) {
-        if (!win) return false
-
-        let savedX = 0, savedY = 0
-        try {
-            const cur = Hyprland.cursor
-            if (cur && cur.x !== undefined) {
-                savedX = cur.x
-                savedY = cur.y
-            }
-        } catch (e) {}
-
-        let address = ""
-        let from = "none"
-        try {
-            if (win.address !== undefined && win.address !== null && String(win.address).length > 0) {
-                address = String(win.address)
-                from = "win.address"
-            } else if (win.lastIpcObject && win.lastIpcObject.address) {
-                address = String(win.lastIpcObject.address)
-                from = "lastIpcObject"
-            }
-        } catch (e) {}
-
-        if (!address) {
-            console.log("focusToplevel: no address found")
-            return false
-        }
-
-        if (!address.startsWith("0x")) address = "0x" + address
-
-        if (!/^0x[0-9a-fA-F]+$/.test(address)) return false
-        const selector = JSON.stringify("address:" + address)
-        Hyprland.dispatch("hl.dsp.focus({ window = " + selector + " })")
-        Hyprland.dispatch("hl.dsp.window.alter_zorder({ window = " + selector + ", mode = \"top\" })")
-        if (Number.isFinite(savedX) && Number.isFinite(savedY) && (savedX !== 0 || savedY !== 0)) {
-            Hyprland.dispatch("hl.dsp.cursor.move({ x = " + Math.round(savedX) + ", y = " + Math.round(savedY) + " })")
-        }
-        return true
-    }
+    WindowActions { id: windowActions }
 
     function normalizeId(id) {
         return String(id || "").toLowerCase().replace(/\.desktop$/, "")
     }
 
     function desktopEntryForApp(app) {
-        if (!app) return null
-        const candidates = [app.desktopId, app.appId, app.icon, app.name]
-        for (let i = 0; i < candidates.length; i++) {
-            const id = String(candidates[i] || "")
-            if (!id || id.startsWith("/")) continue
-            try {
-                const entry = DesktopEntries.heuristicLookup(id) || DesktopEntries.byId(id) || DesktopEntries.byId(normalizeId(id))
-                if (entry) return entry
-            } catch (e) {}
-        }
-        for (let i = 0; i < candidates.length; i++) {
-            const entry = scanDesktopEntry(candidates[i])
-            if (entry) return entry
-        }
-        return null
-    }
-
-    function entryValue(entry, keys) {
-        if (!entry) return ""
-        for (let i = 0; i < keys.length; i++) {
-            try {
-                const value = entry[keys[i]]
-                if (value !== undefined && value !== null && String(value)) return String(value)
-            } catch (e) {}
-        }
-        return ""
-    }
-
-    function executableNameFromEntry(entry) {
-        const exec = entryValue(entry, ["execString", "exec"])
-        if (exec) {
-            const first = exec.trim().split(/\s+/)[0]
-            const parts = first.split("/")
-            return parts[parts.length - 1]
-        }
-        try {
-            const command = entry.command ? Array.from(entry.command) : []
-            if (command.length > 0) {
-                const parts = String(command[0]).split("/")
-                return parts[parts.length - 1]
-            }
-        } catch (e) {}
-        return ""
-    }
-
-    function entryMatchesId(entry, id) {
-        const normalized = normalizeId(id)
-        if (!normalized) return false
-        const values = [
-            entryValue(entry, ["id", "desktopId"]),
-            entryValue(entry, ["name"]),
-            entryValue(entry, ["icon"]),
-            entryValue(entry, ["startupWmClass", "startupWMClass", "startupClass", "wmClass"]),
-            executableNameFromEntry(entry)
-        ]
-        for (let i = 0; i < values.length; i++) {
-            if (normalizeId(values[i]) === normalized) return true
-        }
-        return false
-    }
-
-    function scanDesktopEntry(id) {
-        if (!id || String(id).startsWith("/")) return null
-        try {
-            const entries = DesktopEntries.applications.values || []
-            for (let i = 0; i < entries.length; i++) {
-                const entry = entries[i]
-                if (entryMatchesId(entry, id)) return entry
-            }
-        } catch (e) {}
-        return null
+        return app ? windowModel.desktopEntry(app.desktopId || app.appId) : null
     }
 
     function commandArray(command) {
@@ -176,6 +67,8 @@ ShellRoot {
     }
 
     function launchApp(app) {
+        if (!app || windowModel.isExcluded(app)) return
+        if (settingsStore.dockValues.launchFeedback) windowModel.rememberPendingApp(app.desktopId || app.appId)
         const entry = desktopEntryForApp(app)
         const arrayCommand = cleanedCommandArray(app && app.command)
         if (arrayCommand.length > 0) {
@@ -206,15 +99,16 @@ ShellRoot {
     function activateApp(app) {
         if (!app) return
         if (app.running && app.toplevels && app.toplevels.length > 0) {
-            if (focusToplevel(app.toplevels[0])) return
+            windowActions.activate(app.toplevels[0], settingsStore.dockValues.minimizeMode)
+            return
         }
-        launchApp(app)
+        if (!app.pending) launchApp(app)
     }
 
     property bool screensReady: Quickshell.screens && Quickshell.screens.length > 0
 
     function focusWindowByAddress(win) {
-        return focusToplevel(win)
+        return windowActions.focusToplevel(win)
     }
 
     function screenForMonitor(name) {
@@ -241,11 +135,13 @@ ShellRoot {
 
     PinnedApps {
         id: pinnedApps
+        overrides: settingsStore.dockValues.identityOverrides
         onChanged: windowModel.update()
     }
 
     WindowModel {
         id: windowModel
+        settings: settingsStore
         pinnedApps: pinnedApps.apps
     }
 
@@ -359,6 +255,7 @@ ShellRoot {
                         root.menuOpen = true
                     }
                     onCloseMenuRequested: root.menuOpen = false
+                    onReorderRequested: (fromKey, beforeKey) => pinnedApps.reorder(fromKey, beforeKey)
                     onLaunch: Quickshell.execDetached([
     Quickshell.env("HOME") + "/.local/bin/walker-themed"
 ])
@@ -453,6 +350,7 @@ ShellRoot {
                         root.menuOpen = true
                     }
                     onCloseMenuRequested: root.menuOpen = false
+                    onReorderRequested: (fromKey, beforeKey) => pinnedApps.reorder(fromKey, beforeKey)
                     onLaunch: Quickshell.execDetached([
     Quickshell.env("HOME") + "/.local/bin/walker-themed"
 ])
@@ -526,7 +424,7 @@ ShellRoot {
             app: root.menuApp
             settings: settingsStore
             onPinRequested: app => pinnedApps.pin(app)
-            onUnpinRequested: app => pinnedApps.unpin(app.appId)
+            onUnpinRequested: app => pinnedApps.unpin(app.canonicalId || app.appId)
             onSettingsRequested: {
                 root.settingsOpen = true
                 root.menuOpen = false
