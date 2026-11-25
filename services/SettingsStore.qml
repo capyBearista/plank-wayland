@@ -60,7 +60,7 @@ Item {
     }
 
     function adjustAlpha(color, delta) {
-        if (!color || color === "transparent" || color[0] !== "#" || color.length !== 9) return color
+        if (typeof color !== "string" || color === "transparent" || color[0] !== "#" || color.length !== 9) return color
         const alpha = parseInt(color.slice(1, 3), 16)
         return "#" + alphaHex(alpha + delta) + color.slice(3)
     }
@@ -235,6 +235,8 @@ Item {
             const value = JSON.parse(text)
             if (!value || value.schemaVersion !== 1 || !value.dock || typeof value.dock !== "object" || Array.isArray(value.dock)) throw Error("Invalid settings schema")
             const d = Config.validateDock(DockSettings.dock, value.dock)
+            if (!DockSettings.styles[d.lightStyle]) d.lightStyle = DockSettings.dock.lightStyle
+            if (!DockSettings.styles[d.darkStyle]) d.darkStyle = DockSettings.dock.darkStyle
             dockValues = d
             styleOverrides = Config.validateStyles(DockSettings.styles, value.styleOverrides)
             styleName = DockSettings.styles[value.styleName] ? value.styleName : DockSettings.styleName

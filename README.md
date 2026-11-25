@@ -1,174 +1,118 @@
-# plank-wayland
+# Plank Wayland — customized floating taskbar
 
-A macOS-style dock for [Hyprland](https://hyprland.org/) built with [Quickshell](https://github.com/Quickshell/Quickshell).
+A lightweight, application-centric Hyprland taskbar built on Quickshell. This fork preserves clear glass, opaque icons, running underlines, Walker launching, and the existing compositor focus dispatchers. It does not replace Waybar, Darkman, Mako or your window manager.
 
-## Features
+## Status and requirements
 
-- **macOS-like dock** with app icons, zoom animation, and running indicators
-- **Multi-monitor support** — dock appears on both internal and external displays
-- **Window management** — click to focus, multi-window menu (click or hover)
-- **Hover preview** — hover over an app with multiple windows to show the window picker (400ms delay)
-- **Pinned apps** — right-click to pin/unpin, persistent across sessions
-- **App launcher** — click the launcher icon (far left) to search and launch apps
-- **Customizable themes** — 20+ built-in styles (macOS, glass, neon, minimal, etc.)
-- **Settings panel** — right-click dock background or use the gear icon in window menus
-- **Smart hide** — auto-hides when windows overlap the dock area
-- **Icon themes** — follows GTK/KDE system icon theme automatically
+- Hyprland 0.57 Lua dispatchers, Wayland, Quickshell, Qt 6 Quick, Python 3 and util-linux (flock).
+- The pre-refactor fork was exercised on Fedora 45 with Hyprland 0.57.2 and Fedora Quickshell 0.2.1 (git build). Upstream advertised >=0.3.0. The new code targets documented 0.2.1 APIs; live acceptance testing is still required. Do not upgrade solely to satisfy the upstream README.
+- Walker integration defaults to the existing `~/.local/bin/walker-themed` wrapper. Other installations may set `dock.launcherCommand` to their own argument array.
+- All changes are user-level. No Hyprland, Waybar, VPN or global appearance config is edited by the installer.
 
-## Requirements
+## Upgrade existing checkout — preserve settings and pins FIRST
 
-- **Hyprland** (Wayland compositor)
-- **Quickshell** `>= 0.3.0` — [AUR: `quickshell`](https://aur.archlinux.org/packages/quickshell)
-- **Qt6** and Qt6 Quick (installed as Quickshell dependency)
-
-## Installation
-
-### Install from Source
+The old dock stored mutable settings and pins in the Git checkout. This version uses XDG files, and tracked pins are now empty. Stop the old dock using Ctrl-C in its launch terminal (or stop its existing service if one exists). Run these commands in Bash:
 
 ```bash
-# Clone the repo
-git clone https://github.com/YOUR_USERNAME/plank-wayland ~/plank-wayland
 cd ~/plank-wayland
-
-# Make run.sh executable
-chmod +x run.sh
-
-# Launch it
+legacy="$(mktemp -d "$HOME/plank-wayland-legacy.XXXXXX")"
+cp -p settings.js apps.js "$legacy/"
+printf 'Legacy backup: %s\n' "$legacy"
+git status --short
+# Stash only legacy user data if it is modified. Do not pop this stash into the new source.
+git stash push -m "legacy dock user data" -- settings.js apps.js
+git pull --ff-only origin main
+./install.sh --legacy-dir "$legacy"
+./tests/run.sh
 ./run.sh
 ```
 
-### Install with Hyprland autostart
+Stop if the pull fails or other local changes conflict. Do not reset your checkout. The installer never overwrites existing XDG data; if you already initialized empty pins, back up the XDG files and reconcile them before migrating. Keep the legacy backup and stash until you verify pins and settings. Do not push your old personal data.
+
+Fresh install:
 
 ```bash
-# In ~/.config/hypr/autostart.conf:
-exec-once = /path/to/plank-wayland/run.sh
+git clone https://github.com/capyBearista/plank-wayland.git ~/plank-wayland
+cd ~/plank-wayland
+./install.sh
+./run.sh
 ```
 
-Or, if you prefer to keep the config in `~/.config/plank-wayland/`:
-
-```bash
-# Run once to copy config files
-mkdir -p ~/.config/plank-wayland
-cp -a components services *.qml *.js run.sh ~/.config/plank-wayland/
-
-# In ~/.config/hypr/autostart.conf:
-exec-once = quickshell --path ~/.config/plank-wayland/shell.qml
-```
-
-## Usage
+## Behavior
 
 | Action | Result |
-|--------|--------|
-| **Left-click** icon | Focus or launch app |
-| **Left-click** icon (multiple windows) | Show window picker menu |
-| **Hover** icon (multiple windows, 400ms) | Show window picker menu |
-| **Right-click** icon | Open app context menu (pin, settings) |
-| **Left-click** launcher (far-left icon) | Open app launcher |
-| **Right-click** dock background | Open dock settings |
-
-### Window Picker
-
-When an app has multiple windows open:
-- **Click** the dock icon → shows the window list
-- **Hover** over the icon for 400ms → automatically shows the window list
-- **Click** a window entry → focuses that window
-- Hovering over the menu pauses the auto-close timer
+| --- | --- |
+| Move pointer to bottom edge | Reveal dock |
+| Click a running single-window app | Focus window |
+| Click a pinned app with no window | Launch; pending indicator times out |
+| Click or hover a multi-window app | Show window picker |
+| Right-click app | Context menu, pin/unpin, settings |
+| Right-click empty dock background | Settings |
+| Drag a pinned icon and drop | Reorder pins; launcher stays fixed |
+| Click launcher | Invoke configured Walker command |
+| Window requests urgency | Highlight app, briefly reveal on its monitor (not over fullscreen by default) |
 
 ## Configuration
 
-### Quick Settings
+Data lives at `${XDG_CONFIG_HOME:-$HOME/.config}/plank-wayland/`:
+- `settings.json` — validated runtime settings; edit directly or use the panel.
+- `pinned-apps.json` — ordered user pins; not committed.
+- `migration-backup/` — legacy input backups (when migration requested).
 
-Open the settings panel by right-clicking the dock background or clicking the gear icon (⚙) in any app's context menu.
+See [configuration reference](docs/configuration.md). Dock uses the existing Darkman mode file at `${XDG_CONFIG_HOME:-$HOME/.config}/desktop-theme/mode`; it only reads it. Set `themeMode` to manual for a fixed preset.
 
-### Direct Configuration: `settings.js`
+The Hyprland layer namespace is `plank-wayland-dock` on every display. Existing Altair blur rule matches it. Auto-hide reserves zero screen space. Repeated monitor names are not hardcoded.
 
-The main configuration file is `settings.js`. Key fields:
+### Experimental minimize / restore
 
-```js
-var dock = {
-    "iconSize": 36,                  // Base icon size in pixels
-    "zoomEnabled": true,             // Enable/disable hover zoom
-    "zoomPercent": 150,              // Zoom magnification (100 = no zoom)
-    "itemPadding": 2.5,              // Spacing between icons
-    "topPadding": -11,               // Vertical padding (negative = tighter)
-    "bottomPadding": 2.5,
-    "autoHide": false,               // Auto-hide when not hovering
-    "smartHide": false,              // Hide when window overlaps dock
-    "menuBottomMargin": 118,         // Distance from screen bottom to menu
-    "hideOffset": 100,               // Pixels to slide down when hidden
-    "fadeTime": 160,                 // Fade animation duration (ms)
-    "slideTime": 220,                // Slide animation duration (ms)
-    "zoomDuration": 120,             // Zoom animation duration (ms)
-    "clickTime": 300,                // Click debounce time (ms)
-    "launchBounceTime": 420,         // Launch bounce animation (ms)
-    "launchBounceHeight": 0.625,     // Bounce height multiplier
-    "urgentBounceTime": 600,         // Urgent window bounce (ms)
-    "urgentBounceHeight": 1.667,     // Urgent bounce height
-}
-```
+Default `minimizeMode: "off"` preserves proven focus behavior. Try `"native"` first: the Wayland minimize request can be ignored by Hyprland. If not supported, opt into `"workspace"` mode. That moves a focused ordinary numeric-workspace window to `special:plank-minimized-N` where N is its original workspace number. Clicking its taskbar icon restores the window to N. Named, fullscreen and pinned windows are not moved; grouped apps retain the picker. Workspace topology changes can alter the display used by the original workspace. No fallback runs automatically.
 
-### Pinned Apps: `apps.js`
-
-Pinned apps persist across sessions in `apps.js`. You can also pin/unpin via the right-click menu in the dock.
-
-### Themes
-
-Change the active style:
-
-```js
-var styleName = "macos-dark"  // See "styles" block in settings.js for all options
-```
-
-Available styles: `macos`, `macos-dark`, `macos-light`, `plank`, `plank-transparent`, `glass`, `clear-glass`, `black-glass`, `neon`, `obsidian`, `deep-sea`, `nebula`, `frost`, `liquid-titanium`, `onyx-gold`, `aurora-noir`, `champagne-glass`, `rose-quartz`, `cobalt-pro`, `minimal`
-
-## Project Structure
-
-```
-plank-wayland/
-├── shell.qml              # Main entry point — ShellRoot with all panels
-├── settings.js            # Dock configuration and themes
-├── apps.js                # Pinned apps list
-├── i18n.js                # Internationalization
-├── run.sh                 # Launch script with icon theme detection
-├── README.md              # This file
-├── components/
-│   ├── Dock.qml           # Dock bar layout and behavior
-│   ├── DockItem.qml       # Individual dock icon
-│   ├── DockMenu.qml       # Window picker menu
-│   ├── DockTooltip.qml    # App name tooltip
-│   ├── AppLauncher.qml    # Full-screen app launcher
-│   ├── LauncherItem.qml   # Launcher icon (far left of dock)
-│   ├── Indicator.qml      # Running/active indicator
-│   ├── SettingsButton.qml # Toggle button for settings
-│   └── SettingsPanel.qml  # Settings UI panel
-└── services/
-    ├── WindowModel.qml    # Window tracking and grouping
-    ├── PinnedApps.qml     # Pinned app persistence
-    └── SettingsStore.qml  # Settings state management
-```
-
-## Troubleshooting
-
-### Dock doesn't appear
-
-Make sure `quickshell` is installed and run from a Hyprland session:
+Recovery even if the dock crashes: open the special workspace from a Hyprland terminal (replace N with actual original number), then move the window back using your normal keybinding:
 
 ```bash
-quickshell --path /path/to/plank-wayland/shell.qml
+hyprctl clients
+hyprctl dispatch 'hl.dsp.workspace.toggle_special({ name = "plank-minimized-1" })'
 ```
 
-### Window picker menu doesn't respond
+Or restore a specific window by replacing the example address and workspace:
 
-The menu needs `WlrLayershell.layer: WlrLayer.Overlay` to stay above windows — verify your `shell.qml` includes this in the menu `PanelWindow`.
+```bash
+hyprctl dispatch 'hl.dsp.window.move({ window = "address:0xEXAMPLE", workspace = "1", follow = true })'
+```
 
-### Icons not showing
+Do not enable workspace mode until you have tested restoration with a disposable window. Before rolling back to the old dock, restore all windows in these special workspaces.
 
-The dock follows your GTK/KDE icon theme. Set `"followSystemIconTheme": false` in `settings.js` and restart if you want to specify icons directly via desktop entries.
+## Optional Hyprland/UWSM autostart
 
-## Credits
+First test the manual instance. Stop it, then run:
 
-Based on the original [plank-wayland](https://github.com/Quickshell/plank-wayland) example by the Quickshell project.
+```bash
+./install.sh --enable-service
+systemctl --user status plank-wayland.service
+journalctl --user -u plank-wayland.service -b --no-pager
+```
 
-## License
+The user service is tied to graphical-session.target (UWSM), has a Hyprland socket/environment guard, and uses the repository's run.sh. Do not add a duplicate Hyprland autostart command. The runtime lock prevents two new instances on the same Hyprland session; it cannot stop an old pre-upgrade instance.
 
-MIT
+Disable/remove the service and return to manual startup:
+
+```bash
+./install.sh --disable-service
+./run.sh
+```
+
+This preserves user settings and pins. No system service or sudo required.
+
+## Tests
+
+```bash
+./tests/run.sh
+```
+
+Bash syntax checks, Python migration tests and optional Node-based JavaScript logic tests are separate from the graphical acceptance checks. See [runtime acceptance](docs/runtime-acceptance.md). The new dock is not certified on Altair until those checks pass.
+
+## Rollback
+
+Stop the new dock and disable its user service if enabled. Restore minimized windows first. To inspect the old baseline without changing your main branch, use a separate worktree at `7cb2fd2` and copy your saved legacy settings and pins there. Keep new XDG files; the old version does not use them. Never overwrite user settings with repository defaults just to test.
+
+Upstream: [franklinbravos/plank-wayland](https://github.com/franklinbravos/plank-wayland). API references: [Quickshell 0.2.1](https://quickshell.org/docs/v0.2.1/), [Hyprland dispatchers](https://wiki.hypr.land/0.57.0/configuring/core/dispatchers/), [UWSM](https://wiki.hypr.land/useful-utilities/uwsm/).

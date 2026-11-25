@@ -1,0 +1,18 @@
+[Unit]
+Description=Plank Wayland taskbar
+PartOf=graphical-session.target
+After=graphical-session.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+ExecCondition=/usr/bin/bash @CHECK_SESSION@
+ExecStart=/usr/bin/bash @RUN_SCRIPT@
+Restart=on-failure
+RestartSec=3
+RestartPreventExitStatus=75
+Slice=app-graphical.slice
+
+[Install]
+WantedBy=graphical-session.target

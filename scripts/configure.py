@@ -40,6 +40,8 @@ def initialize(config_dir, legacy=None):
     dock = value(defaults, "dock")
     dock.update(value(source, "dock"))
     style = value(source, "styleName")
+    if source != defaults and style != value(defaults, "styleName") and "themeMode" not in value(source, "dock"):
+        dock["themeMode"] = "manual"
     overrides = {}
     if source != defaults:
         old_styles = value(source, "styles")
@@ -51,6 +53,8 @@ def initialize(config_dir, legacy=None):
     pins = value(legacy_apps.read_text(), "items") if legacy_apps and legacy_apps.is_file() else []
     if not isinstance(pins, list) or any(not isinstance(p, dict) or not isinstance(p.get("appId"), str) or not p["appId"] for p in pins):
         raise ValueError("Invalid legacy pins")
+    if legacy and ((config_dir / "settings.json").exists() or (config_dir / "pinned-apps.json").exists()):
+        print("Existing XDG files will be preserved; migration only initializes missing files.")
     if legacy:
         backup = config_dir / "migration-backup"
         backup.mkdir(exist_ok=True, mode=0o700)

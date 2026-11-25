@@ -12,7 +12,7 @@ Item {
     readonly property var overrides: options.identityOverrides || ({})
     readonly property var excludedApps: options.excludedApps || ["xwaylandvideobridge"]
     readonly property var pinnedDockApps: pinnedApps.map(appFromPinned).filter(app => !isExcluded(app))
-    onOptionsChanged: { entryCache = ({}); scheduleUpdate(false) }
+    onOptionsChanged: { entryCache = Object.create(null); scheduleUpdate(false) }
     function isExcluded(app) { return Identity.excluded(app, excludedApps, overrides) }
     function canonical(appId) {
         const preferred = Identity.override(appId, overrides)
@@ -28,8 +28,8 @@ Item {
     property bool updateScheduled: false
     property bool refreshScheduled: false
     property int refreshRetryCount: 0
-    property var entryCache: ({})
-    property var pendingApps: ({})
+    property var entryCache: Object.create(null)
+    property var pendingApps: Object.create(null)
     readonly property int pendingAppTtl: options.launchTimeoutMs || 10000
 
     onPinnedAppsChanged: scheduleUpdate(false)
@@ -104,7 +104,7 @@ Item {
     }
 
     function scanDesktopEntry(appId) {
-        const entries = DesktopEntries.applications.values || []
+        const entries = Array.from(DesktopEntries.applications.values || [])
         const matches = entries.filter(entry => entryMatchesAppId(entry, appId))
         return matches.length === 1 ? matches[0] : null
     }
@@ -240,7 +240,7 @@ Item {
         const key = canonical(appId)
         if (!key || isExcluded({appId: appId, canonicalId: key})) return
 
-        const next = ({})
+        const next = Object.create(null)
         for (const existing in pendingApps) next[existing] = pendingApps[existing]
         next[key] = { appId: appId, addedAt: Date.now() }
         pendingApps = next
@@ -266,7 +266,7 @@ Item {
     }
 
     function update() {
-        const grouped = ({})
+        const grouped = Object.create(null)
         try {
             const wins = Hyprland.toplevels.values || []
             for (let i = 0; i < wins.length; i++) {
@@ -281,7 +281,7 @@ Item {
         } catch (e) {}
 
         const now = Date.now()
-        const nextPending = ({})
+        const nextPending = Object.create(null)
         for (const key in pendingApps) {
             const pending = pendingApps[key]
             if (!pending || grouped[key] || isExcluded({appId: pending.appId, canonicalId: key})) continue
@@ -307,7 +307,7 @@ Item {
         if (pendingChanged) pendingApps = nextPending
 
         const result = []
-        const used = ({})
+        const used = Object.create(null)
 
         for (let i = 0; i < pinnedApps.length; i++) {
             const pinned = pinnedApps[i]
@@ -347,7 +347,7 @@ Item {
     Connections {
         target: DesktopEntries.applications
         function onValuesChanged() {
-            root.entryCache = ({})
+            root.entryCache = Object.create(null)
             root.scheduleUpdate(false)
         }
     }

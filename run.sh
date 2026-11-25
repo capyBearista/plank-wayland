@@ -6,6 +6,8 @@ project_dir="$(cd -- "$(dirname -- "$script_path")" && pwd)"
 
 command -v quickshell >/dev/null || { echo "Quickshell is required" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "Python 3 is required" >&2; exit 1; }
+command -v flock >/dev/null || { echo "flock (util-linux) is required" >&2; exit 1; }
+"$project_dir/scripts/check-session.sh" || { echo "Start this dock from a Hyprland Wayland session." >&2; exit 1; }
 python3 "$project_dir/scripts/configure.py"
 config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/plank-wayland"
 
@@ -53,4 +55,5 @@ if follow_icon_theme_enabled && [[ -z "${QS_ICON_THEME:-}" ]]; then
   fi
 fi
 
-exec quickshell --path "$project_dir/shell.qml"
+lock_path="${XDG_RUNTIME_DIR:?Missing XDG_RUNTIME_DIR}/plank-wayland-${HYPRLAND_INSTANCE_SIGNATURE}.lock"
+exec flock --nonblock --conflict-exit-code 75 --no-fork "$lock_path" quickshell --path "$project_dir/shell.qml"

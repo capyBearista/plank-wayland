@@ -22,12 +22,19 @@ function validateDock(defaults, input) {
     for (const key of Object.keys(ranges)) if (key in d) d[key] = clamp(d[key], ranges[key][0], ranges[key][1])
     if (!["system","light","dark","manual"].includes(d.themeMode)) d.themeMode = defaults.themeMode
     if (!["off","native","workspace"].includes(d.minimizeMode)) d.minimizeMode = defaults.minimizeMode
-    d.identityOverrides = Object.fromEntries(Object.entries(d.identityOverrides).filter(([k,v]) => k && typeof v === "string" && v.trim()))
+    const overrides = {}
+    for (const key of Object.keys(d.identityOverrides || {})) {
+        if (key !== "__proto__" && key !== "constructor" && typeof d.identityOverrides[key] === "string" && d.identityOverrides[key].trim()) overrides[key] = d.identityOverrides[key]
+    }
+    d.identityOverrides = overrides
     return d
 }
 
 function validPins(value) {
-    return Array.isArray(value) && value.every(p => p && typeof p === "object" && typeof p.appId === "string" && p.appId.length > 0)
+    return Array.isArray(value) && value.every(p => p && typeof p === "object" && typeof p.appId === "string" && p.appId.length > 0 &&
+        ["canonicalId","desktopId","name","icon","fallback"].every(key => p[key] === undefined || typeof p[key] === "string") &&
+        (p.iconAliases === undefined || Array.isArray(p.iconAliases) && p.iconAliases.every(v => typeof v === "string")) &&
+        (p.command === undefined || typeof p.command === "string" || Array.isArray(p.command) && p.command.every(v => typeof v === "string")))
 }
 
 function validateStyles(defaults, supplied) {

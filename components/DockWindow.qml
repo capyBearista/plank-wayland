@@ -10,7 +10,7 @@ PanelWindow {
     property bool popupOpen: false
     property var menuApp: null
     readonly property var monitor: screen ? Hyprland.monitorFor(screen) : null
-    readonly property var visibleWindows: (Hyprland.toplevels.values || []).filter(w =>
+    readonly property var visibleWindows: Array.from(Hyprland.toplevels.values || []).filter(w =>
         w.monitor === monitor && monitor && w.workspace === monitor.activeWorkspace && !(w.wayland && w.wayland.minimized))
     readonly property bool hasFullscreen: visibleWindows.some(w => w.wayland && w.wayland.fullscreen)
     readonly property bool overlaps: {
