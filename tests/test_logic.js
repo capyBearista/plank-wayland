@@ -55,3 +55,16 @@ assert.equal(W.actionFor({...state,mode:"native"}),"minimize-native")
 assert.equal(W.actionFor({...state,current:false,minimized:true}),"restore-native")
 assert.equal(W.actionFor({...state,mode:"off",recovery:{id:3}}),"restore-workspace")
 console.log("Workspace-aware click policy assertions passed.")
+
+const edit = load("services/Config.js", ["withOption"]).withOption
+const initial = {...D.dock, zoomEnabled:false, zoomPercent:100}
+const enabled = edit(D.dock,initial,"zoomEnabled",true)
+assert.equal(enabled.zoomEnabled,true)
+assert.equal(enabled.zoomPercent,150)
+assert.equal(initial.zoomPercent,100)
+assert.equal(edit(D.dock,enabled,"iconSize",48).iconSize,48)
+assert.equal(edit(D.dock,enabled,"iconSize",200).iconSize,96)
+assert.equal(edit(D.dock,enabled,"zoomPercent",100).zoomPercent,100)
+assert.equal(edit(D.dock,enabled,"zoomEnabled",false).zoomEnabled,false)
+assert.equal(edit(D.dock,enabled,"missing",true),enabled)
+console.log("Reactive setting edit assertions passed.")

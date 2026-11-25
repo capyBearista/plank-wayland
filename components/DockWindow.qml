@@ -42,7 +42,7 @@ PanelWindow {
     signal launcherRequested()
 
     function requestMenu(app) {
-        if (app) menuRequested(app, dock.x + dock.menuX, dock.menuBottomMargin)
+        if (app) menuRequested(app, dock.x + dock.itemCenterForApp(app) - 140, dock.menuBottomMargin)
     }
 
     onUrgentKeysChanged: {
@@ -91,8 +91,8 @@ PanelWindow {
         id: dockInput
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        width: Math.min(parent.width, dock.barWidth)
-        height: dock.hidden ? 0 : dock.barHeight + dock.bottomGap
+        width: Math.min(parent.width, dock.zoomEnabled ? dock.dockMaxWidth : dock.barWidth)
+        height: dock.hidden ? 0 : Math.min(parent.height, Math.max(dock.barHeight, dock.maxItemSize + dock.bottomPadding + 8) + dock.bottomGap)
         z: 1
         HoverHandler { id: dockHover; blocking: false }
     }

@@ -13,7 +13,7 @@ Item {
     property real dockMouseX: -10000
     property bool dockHovered: false
     property real zoomProgress: 0
-    property bool autoHide: settings ? settings.autoHide : (root.settings ? root.settings.dockValues.autoHide : DockSettings.dock.autoHide)
+    property bool autoHide: settings ? settings.dockValues.autoHide : DockSettings.dock.autoHide
     property bool smartHideEnabled: false
     property bool isOverlapped: false
     property bool menuOpen: false
@@ -49,9 +49,9 @@ Item {
     readonly property real menuX: menuApp ? Math.max(0, Math.min(dockMaxWidth - 260, itemCenterForApp(menuApp) - 130)) : 0
     readonly property real menuBottomMargin: barHeight + bottomGap + 16
 
-    readonly property real baseItemSize: settings ? settings.iconSize : (root.settings ? root.settings.dockValues.iconSize : DockSettings.dock.iconSize)
-    readonly property bool zoomEnabled: settings ? settings.zoomEnabled : (root.settings ? root.settings.dockValues.zoomEnabled : DockSettings.dock.zoomEnabled)
-    readonly property real zoomPercent: zoomEnabled ? (settings ? settings.zoomPercent : (root.settings ? root.settings.dockValues.zoomPercent : DockSettings.dock.zoomPercent)) / 100 : 1
+    readonly property real baseItemSize: settings ? settings.dockValues.iconSize : DockSettings.dock.iconSize
+    readonly property bool zoomEnabled: settings ? settings.dockValues.zoomEnabled : DockSettings.dock.zoomEnabled
+    readonly property real zoomPercent: zoomEnabled ? (settings ? settings.dockValues.zoomPercent : DockSettings.dock.zoomPercent) / 100 : 1
     readonly property real maxItemSize: baseItemSize * zoomPercent
     readonly property real dockSpacing: (root.settings ? root.settings.dockValues.itemPadding : DockSettings.dock.itemPadding) * baseItemSize / 10
     readonly property real dockPadding: Math.max(0, (root.settings ? root.settings.dockValues.horizPadding : DockSettings.dock.horizPadding) * baseItemSize / 10) + 28
@@ -145,7 +145,8 @@ Item {
     onAppsChanged: syncItemKeys()
     Component.onCompleted: syncItemKeys()
 
-    onDockHoveredChanged: zoomProgress = dockHovered ? 1 : 0
+    onDockHoveredChanged: zoomProgress = dockHovered && !dragging ? 1 : 0
+    onDraggingChanged: zoomProgress = dockHovered && !dragging ? 1 : 0
 
     Behavior on zoomProgress {
         NumberAnimation {

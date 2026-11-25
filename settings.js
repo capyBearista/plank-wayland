@@ -4,7 +4,7 @@ var dock = {
     "iconSize": 36,
     "zoomEnabled": false,
     "followSystemIconTheme": true,
-    "zoomPercent": 100,
+    "zoomPercent": 150,
     "itemPadding": 2.5,
     "horizPadding": 0,
     "topPadding": -11,

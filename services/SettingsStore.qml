@@ -11,6 +11,7 @@ Item {
     property var dockValues: Object.assign({}, DockSettings.dock)
     property var styleOverrides: ({})
     property string errorMessage: ""
+    property string saveMessage: ""
     property bool saving: false
     property bool externalConflict: false
     property bool discardRequested: false
@@ -18,17 +19,17 @@ Item {
     property string pendingSave: ""
     property string styleName: DockSettings.styleName
     property string uiLanguage: DockSettings.uiLanguage || "zh-CN"
-    property int iconSize: DockSettings.dock.iconSize
-    property int zoomPercent: DockSettings.dock.zoomPercent
-    property bool zoomEnabled: DockSettings.dock.zoomEnabled
-    property bool followSystemIconTheme: DockSettings.dock.followSystemIconTheme !== false
+    readonly property int iconSize: dockValues.iconSize
+    readonly property int zoomPercent: dockValues.zoomPercent
+    readonly property bool zoomEnabled: dockValues.zoomEnabled
+    readonly property bool followSystemIconTheme: dockValues.followSystemIconTheme
     property int iconThemeRevision: 0
     property string systemIconTheme: ""
     property bool iconThemeLoaded: false
     property var iconCache: ({})
     property var pendingIconRequests: ({})
-    property bool autoHide: DockSettings.dock.autoHide
-    property bool smartHide: DockSettings.dock.smartHide || false
+    readonly property bool autoHide: dockValues.autoHide
+    readonly property bool smartHide: dockValues.smartHide
     property string indicatorStyle: DockSettings.theme.indicatorStyle
     property int radiusAdjust: 0
     property int opacityAdjust: 0
@@ -217,6 +218,7 @@ Item {
     }
 
     function markDirty() {
+        saveMessage = ""
         dirty = true
         changed()
     }
@@ -242,16 +244,11 @@ Item {
             styleOverrides = Config.validateStyles(DockSettings.styles, value.styleOverrides)
             styleName = DockSettings.styles[value.styleName] ? value.styleName : DockSettings.styleName
             uiLanguage = typeof value.uiLanguage === "string" ? value.uiLanguage : (DockSettings.uiLanguage || "en")
-            iconSize = d.iconSize
-            zoomPercent = d.zoomPercent
-            zoomEnabled = d.zoomEnabled
-            followSystemIconTheme = d.followSystemIconTheme
-            autoHide = d.autoHide
-            smartHide = d.smartHide
             indicatorStyle = ["line","dot","legacy"].includes(value.indicatorStyle) ? value.indicatorStyle : (styleDefaults(styleName).indicatorStyle || "line")
             radiusAdjust = 0
             opacityAdjust = 0
             savedText = text
+            saveMessage = force ? "Saved settings restored." : ""
             dirty = false
             externalConflict = false
             errorMessage = ""
@@ -267,20 +264,17 @@ Item {
     }
 
     function setOption(key, value) {
-        if (!(key in DockSettings.dock)) return
-        const next = Object.assign({}, dockValues)
-        next[key] = value
-        dockValues = Config.validateDock(DockSettings.dock, next)
+        if (saving || !(key in DockSettings.dock)) return
+        const next = Config.withOption(DockSettings.dock, dockValues, key, value)
+        if (JSON.stringify(next) === JSON.stringify(dockValues)) return
+        dockValues = next
+        if (key === "followSystemIconTheme") refreshSystemIconTheme(false)
         markDirty()
     }
 
     function save() {
         if (saving || externalConflict) return
-        const dock = Object.assign({}, dockValues, {
-            iconSize: iconSize, zoomEnabled: zoomEnabled,
-            followSystemIconTheme: followSystemIconTheme, zoomPercent: zoomPercent,
-            autoHide: autoHide, smartHide: smartHide
-        })
+        const dock = Object.assign({}, dockValues)
         const overrides = Object.assign({}, styleOverrides)
         if (radiusAdjust || opacityAdjust) overrides[effectiveStyle] = buildTheme(effectiveStyle, indicatorStyle)
         pendingSave = JSON.stringify({schemaVersion: 1, dock: dock, styleName: styleName, uiLanguage: uiLanguage, indicatorStyle: indicatorStyle, styleOverrides: overrides}, null, 4) + "\n"
@@ -288,51 +282,71 @@ Item {
         file.setText(pendingSave)
     }
 
+    readonly property var availableStyles: Object.keys(DockSettings.styles)
+    readonly property color glassColor: theme.backgroundColor || "#22ffffff"
+    readonly property int glassOpacityPercent: Math.round(glassColor.a * 100)
+
     function setStyle(name) {
+        if (saving || !DockSettings.styles[name]) return
         styleName = name
         setOption("themeMode", "manual")
-        indicatorStyle = styleDefaults(name).indicatorStyle || "dot"
+        markDirty()
+    }
+
+    function setIndicator(value) {
+        if (saving || !["line","dot","legacy"].includes(value) || value === indicatorStyle) return
+        indicatorStyle = value
+        markDirty()
+    }
+
+    function setStyleOverride(key, value) {
+        if (saving) return
+        const next = Object.assign({}, styleOverrides)
+        next[effectiveStyle] = Object.assign({}, styleDefaults(effectiveStyle))
+        next[effectiveStyle][key] = value
+        styleOverrides = Config.validateStyles(DockSettings.styles, next)
+        markDirty()
+    }
+
+    function setGlassOpacity(percent) {
+        if (saving) return
+        const next = Object.assign({}, styleOverrides)
+        const base = Object.assign({}, styleDefaults(effectiveStyle))
+        const delta = Math.round(Math.max(0, Math.min(100, percent)) * 255 / 100) - Math.round(glassColor.a * 255)
+        for (const key of ["backgroundColor", "barGradientStart", "barGradientEnd"]) {
+            if (typeof base[key] === "string") base[key] = adjustAlpha(base[key], delta)
+        }
+        next[effectiveStyle] = base
+        styleOverrides = Config.validateStyles(DockSettings.styles, next)
+        markDirty()
+    }
+
+    function resetAppearance() {
+        if (saving) return
+        const next = Object.assign({}, styleOverrides)
+        delete next[effectiveStyle]
+        styleOverrides = next
         radiusAdjust = 0
         opacityAdjust = 0
         markDirty()
     }
 
-    function setIconSize(value) {
-        iconSize = Math.max(32, Math.min(96, value))
-        markDirty()
-    }
+    function setIconSize(value) { setOption("iconSize", value) }
 
-    function setZoomPercent(value) {
-        zoomPercent = Math.max(100, Math.min(300, value))
-        markDirty()
-    }
+    function setZoomPercent(value) { setOption("zoomPercent", value) }
 
-    function toggleZoom() {
-        zoomEnabled = !zoomEnabled
-        markDirty()
-    }
+    function toggleZoom() { setOption("zoomEnabled", !zoomEnabled) }
 
-    function toggleFollowSystemIconTheme() {
-        followSystemIconTheme = !followSystemIconTheme
-        refreshSystemIconTheme(false)
-        markDirty()
-    }
+    function toggleFollowSystemIconTheme() { setOption("followSystemIconTheme", !followSystemIconTheme) }
 
-    function toggleAutoHide() {
-        autoHide = !autoHide
-        markDirty()
-    }
+    function toggleAutoHide() { setOption("autoHide", !autoHide) }
 
-    function toggleSmartHide() {
-        smartHide = !smartHide
-        markDirty()
-    }
+    function toggleSmartHide() { setOption("smartHide", !smartHide) }
 
     function cycleIndicator() {
         const styles = ["dot", "line", "legacy"]
         const index = styles.indexOf(indicatorStyle)
-        indicatorStyle = styles[(index + 1) % styles.length]
-        markDirty()
+        setIndicator(styles[(index + 1) % styles.length])
     }
 
     function adjustRadius(delta) {
@@ -404,6 +418,7 @@ Item {
             root.radiusAdjust = 0
             root.opacityAdjust = 0
             root.errorMessage = ""
+            root.saveMessage = "Settings saved."
             reload()
         }
         onSaveFailed: {

@@ -59,10 +59,8 @@ Rectangle {
     property real lift: baseItemSize * zoom / 2 - baseItemSize / 2
     property real bounceLift: 0
     // Fixed-size icons must not share overlapping mouse hit areas.
-    readonly property real hitHorizontalMargin: zoomPercent <= 1
-        ? Math.floor(Math.max(0, dockSpacing / 2))
-        : Math.ceil(Math.max(6, (baseItemSize * zoom - baseItemSize) / 2 + 8))
-    readonly property real hitTopMargin: Math.ceil(Math.max(6, lift + bounceLift + (baseItemSize * zoom - baseItemSize) + 8))
+    readonly property real hitHorizontalMargin: Math.floor(Math.max(0, dockSpacing / 2))
+    readonly property real hitTopMargin: Math.ceil(Math.max(6, zoomIconSize - baseItemSize + 8))
 
     function trigger(button) {
         if (button === Qt.RightButton) {
@@ -97,7 +95,7 @@ Rectangle {
 
     width: baseItemSize
     height: baseItemSize
-    x: centerPosition - width / 2
+    x: staticCenter - width / 2
     y: layerHeight - baseItemSize - bottomPadding
     z: zoom
     opacity: 1.0
@@ -109,6 +107,7 @@ Rectangle {
     Item {
         id: iconShell
         anchors.horizontalCenter: parent.horizontalCenter
+        anchors.horizontalCenterOffset: root.centerPosition - root.staticCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: root.lift + root.bounceLift
         width: root.baseItemSize

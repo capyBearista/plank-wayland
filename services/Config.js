@@ -52,3 +52,13 @@ function validateStyles(defaults, supplied) {
     }
     return result
 }
+
+function withOption(defaults, current, key, value) {
+    if (!Object.prototype.hasOwnProperty.call(defaults, key)) return current
+    const next = Object.assign({}, current)
+    next[key] = value
+    // Existing 100% preferences remain intact until the user enables magnification.
+    if (key === "zoomEnabled" && value === true && !current.zoomEnabled && current.zoomPercent <= 100)
+        next.zoomPercent = 150
+    return validateDock(defaults, next)
+}
