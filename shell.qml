@@ -11,11 +11,12 @@ ShellRoot {
 
     property var menuApp: null
     property bool menuOpen: false
-    property bool launcherOpen: false
     property bool settingsOpen: false
-    property bool closeLayerOpen: false
+    property var popupScreen: null
+    readonly property var eligibleScreens: Quickshell.screens.filter(screen => !settingsStore.dockValues.excludedMonitors.includes(screen.name))
     property real menuX: 0
     property real menuBottomMargin: DockSettings.dock.menuBottomMargin
+    property string menuKey: ""
 
     WindowActions { id: windowActions }
 
@@ -105,28 +106,44 @@ ShellRoot {
         if (!app.pending) launchApp(app)
     }
 
-    property bool screensReady: Quickshell.screens && Quickshell.screens.length > 0
-
     function focusWindowByAddress(win) {
-        return windowActions.focusToplevel(win)
+        return windowActions.activate(win, "off")
     }
 
-    function screenForMonitor(name) {
-        try {
-            const screens = Quickshell.screens
-            if (!screens) return null
-            for (let i = 0; i < screens.length; i++) {
-                if (screens[i].name === name) return screens[i]
-            }
-        } catch (e) {}
-        return null
+    function closeMenu() {
+        menuOpen = false
+        menuApp = null
+        menuKey = ""
     }
 
-    Connections {
-        target: Quickshell
-        function onScreensChanged() {
-            root.screensReady = Quickshell.screens && Quickshell.screens.length > 0
+    function openMenu(screen, app, x, bottom) {
+        if (!app || !screen) return
+        settingsOpen = false
+        popupScreen = screen
+        menuApp = app
+        menuKey = app.canonicalId || app.appId
+        menuX = x
+        menuBottomMargin = bottom
+        menuOpen = true
+    }
+
+    onEligibleScreensChanged: {
+        if (popupScreen && !eligibleScreens.includes(popupScreen)) {
+            closeMenu()
+            settingsOpen = false
+            popupScreen = null
         }
+    }
+
+    function openSettings(screen) {
+        closeMenu()
+        popupScreen = screen
+        settingsOpen = true
+    }
+
+    function launchWalker() {
+        const command = settingsStore.dockValues.launcherCommand
+        Quickshell.execDetached(command.length ? command : [Quickshell.env("HOME") + "/.local/bin/walker-themed"])
     }
 
     SettingsStore {
@@ -143,265 +160,49 @@ ShellRoot {
         id: windowModel
         settings: settingsStore
         pinnedApps: pinnedApps.apps
-    }
-
-    property bool isOverlapped: {
-        if (!settingsStore.smartHide) return false
-        const active = Hyprland.activeToplevel
-        if (!active) return false
-
-        // Always hide if fullscreen
-        if (active.fullscreen) return true
-
-        try {
-            const ipc = active.lastIpcObject
-            if (ipc && Array.isArray(ipc.at) && Array.isArray(ipc.size) && ipc.at.length >= 2 && ipc.size.length >= 2) {
-                const winBottom = ipc.at[1] + ipc.size[1]
-                const screenHeight = dockWindow.screen.height
-                // If window is within the bottom 120 pixels of the screen
-                return winBottom > (screenHeight - 120)
-            }
-        } catch (e) {
-            console.log("SmartHide: Overlap check failed", e)
-        }
-
-        // Fallback for tiled windows if IPC is incomplete
-        return !active.floating
-    }
-
-    Loader {
-        active: root.screensReady && Quickshell.screens && screenForMonitor("HDMI-A-1") !== null
-        sourceComponent: Component {
-            PanelWindow {
-                id: dockWindow
-                visible: windowModel.ready
-
-                anchors {
-                    left: true
-                    right: true
-                    bottom: true
-                }
-
-                margins {
-                    bottom: 0
-                }
-
-                color: "transparent"
-                implicitHeight: dock.layerHeight + dock.bottomGap
-                // Auto-hide must not resize tiled windows when the dock appears.
-                exclusiveZone: dock.autoHide || dock.smartHideEnabled
-                    ? 0 : Math.ceil(dock.barHeight + dock.bottomGap)
-                screen: screenForMonitor("HDMI-A-1")
-                WlrLayershell.namespace: "plank-wayland-dock"
-                mask: Region {
-                    item: dockInputAreaEdge
-                    Region { item: dockInputArea }
-                }
-
-                // Only the bottom strip and visible dock accept pointer input.
-                Item {
-                    id: dockInputAreaEdge
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    height: (dock.autoHide || dock.smartHideEnabled) ? dock.edgeTriggerHeight : 0
-                    z: 2
-
-                    HoverHandler {
-                        id: dockInputAreaEdgeHover
-                        enabled: dockInputAreaEdge.height > 0
-                        blocking: false
-                    }
-                }
-
-                Item {
-                    id: dockInputArea
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottom: parent.bottom
-                    width: dock.barWidth
-                    height: dock.hidden ? 0 : dock.barHeight + dock.bottomGap
-                    z: 1
-
-                    HoverHandler {
-                        id: dockInputAreaHover
-                        blocking: false
-                    }
-                }
-
-                Dock {
-                    id: dock
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    surfaceHovered: dockInputAreaEdgeHover.hovered || dockInputAreaHover.hovered
-                    apps: windowModel.dockApps.length > 0 ? windowModel.dockApps : windowModel.pinnedDockApps
-                    settings: settingsStore
-                    smartHideEnabled: settingsStore.smartHide
-                    isOverlapped: root.isOverlapped
-                    menuOpen: root.menuOpen || root.settingsOpen
-                    menuApp: root.menuApp
-                    onActivate: app => {
-                        if (app && app.running && app.toplevels && app.toplevels.length > 1) {
-                            root.menuApp = app
-                            root.menuX = dockWindow.x + dock.x + dock.menuX
-                            root.menuBottomMargin = dock.menuBottomMargin
-                            root.menuOpen = true
-                        } else {
-                            root.activateApp(app)
-                        }
-                    }
-                    onOpenMenu: app => {
-                        root.menuApp = app
-                        root.menuX = dockWindow.x + dock.x + dock.menuX
-                        root.menuBottomMargin = dock.menuBottomMargin
-                        root.menuOpen = true
-                    }
-                    onCloseMenuRequested: root.menuOpen = false
-                    onReorderRequested: (fromKey, beforeKey) => pinnedApps.reorder(fromKey, beforeKey)
-                    onLaunch: Quickshell.execDetached([
-    Quickshell.env("HOME") + "/.local/bin/walker-themed"
-])
-                }
-            }
+        onAppsChanged: {
+            if (!root.menuOpen) return
+            const next = dockApps.find(app => (app.canonicalId || app.appId) === root.menuKey)
+            if (next) root.menuApp = next
+            else root.closeMenu()
         }
     }
 
-    Loader {
-        active: root.screensReady && Quickshell.screens && screenForMonitor("eDP-1") !== null
-        sourceComponent: Component {
-            PanelWindow {
-                id: dockWindowEdp
-                visible: windowModel.ready
-
-                anchors {
-                    left: true
-                    right: true
-                    bottom: true
-                }
-
-                margins {
-                    bottom: 0
-                }
-
-                color: "transparent"
-                implicitHeight: dockEdp.layerHeight + dockEdp.bottomGap
-                // Auto-hide must not resize tiled windows when the dock appears.
-                exclusiveZone: dockEdp.autoHide || dockEdp.smartHideEnabled
-                    ? 0 : Math.ceil(dockEdp.barHeight + dockEdp.bottomGap)
-                screen: screenForMonitor("eDP-1")
-                WlrLayershell.namespace: "plank-wayland-dock-edp"
-                mask: Region {
-                    item: dockEdpInputAreaEdge
-                    Region { item: dockEdpInputArea }
-                }
-
-                // Only the bottom strip and visible dock accept pointer input.
-                Item {
-                    id: dockEdpInputAreaEdge
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    height: (dockEdp.autoHide || dockEdp.smartHideEnabled) ? dockEdp.edgeTriggerHeight : 0
-                    z: 2
-
-                    HoverHandler {
-                        id: dockEdpInputAreaEdgeHover
-                        enabled: dockEdpInputAreaEdge.height > 0
-                        blocking: false
-                    }
-                }
-
-                Item {
-                    id: dockEdpInputArea
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottom: parent.bottom
-                    width: dockEdp.barWidth
-                    height: dockEdp.hidden ? 0 : dockEdp.barHeight + dockEdp.bottomGap
-                    z: 1
-
-                    HoverHandler {
-                        id: dockEdpInputAreaHover
-                        blocking: false
-                    }
-                }
-
-                Dock {
-                    id: dockEdp
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    surfaceHovered: dockEdpInputAreaEdgeHover.hovered || dockEdpInputAreaHover.hovered
-                    apps: windowModel.dockApps.length > 0 ? windowModel.dockApps : windowModel.pinnedDockApps
-                    settings: settingsStore
-                    smartHideEnabled: settingsStore.smartHide
-                    isOverlapped: root.isOverlapped
-                    menuOpen: root.menuOpen || root.settingsOpen
-                    menuApp: root.menuApp
-                    onActivate: app => {
-                        if (app && app.running && app.toplevels && app.toplevels.length > 1) {
-                            root.menuApp = app
-                            root.menuX = dockWindowEdp.x + dockEdp.x + dockEdp.menuX
-                            root.menuBottomMargin = dockEdp.menuBottomMargin
-                            root.menuOpen = true
-                        } else {
-                            root.activateApp(app)
-                        }
-                    }
-                    onOpenMenu: app => {
-                        root.menuApp = app
-                        root.menuX = dockEdp.x + dockEdp.menuX
-                        root.menuBottomMargin = dockEdp.menuBottomMargin
-                        root.menuOpen = true
-                    }
-                    onCloseMenuRequested: root.menuOpen = false
-                    onReorderRequested: (fromKey, beforeKey) => pinnedApps.reorder(fromKey, beforeKey)
-                    onLaunch: Quickshell.execDetached([
-    Quickshell.env("HOME") + "/.local/bin/walker-themed"
-])
-                }
+    Variants {
+        model: root.eligibleScreens
+        delegate: DockWindow {
+            id: panel
+            required property var modelData
+            screen: modelData
+            settings: settingsStore
+            apps: windowModel.dockApps
+            visible: windowModel.ready
+            popupOpen: root.popupScreen === screen && (root.menuOpen || root.settingsOpen)
+            menuApp: root.popupScreen === screen ? root.menuApp : null
+            onActivateApp: app => {
+                if (app && app.running && app.toplevels.length > 1) panel.requestMenu(app)
+                else root.activateApp(app)
             }
-        }
-    }
-
-    Loader {
-        active: root.screensReady && Quickshell.screens && screenForMonitor("HDMI-A-1") !== null
-        sourceComponent: Component {
-            PanelWindow {
-                id: launcherWindow
-                visible: true
-
-                anchors {
-                    top: true
-                    bottom: true
-                    left: true
-                    right: true
-                }
-                color: "transparent"
-                exclusiveZone: 0
-                mask: Region { item: root.launcherOpen ? launcher : null }
-                WlrLayershell.namespace: "plank-wayland-launcher"
-                WlrLayershell.keyboardFocus: root.launcherOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-                WlrLayershell.layer: WlrLayer.Overlay
-                WlrLayershell.exclusionMode: ExclusionMode.Ignore
-                screen: screenForMonitor("HDMI-A-1")
-
-                AppLauncher {
-                    id: launcher
-                    anchors.fill: parent
-                    shown: root.launcherOpen
-                    settings: settingsStore
-                    onCloseRequested: root.launcherOpen = false
-                }
-            }
+            onMenuRequested: (app, x, bottom) => root.openMenu(screen, app, x, bottom)
+            onMenuCloseRequested: if (root.popupScreen === screen) root.closeMenu()
+            onSettingsRequested: root.openSettings(screen)
+            onReorderRequested: (fromKey, beforeKey) => pinnedApps.reorder(fromKey, beforeKey)
+            onLauncherRequested: root.launchWalker()
         }
     }
 
     PanelWindow {
-        visible: root.menuOpen
+        visible: root.menuOpen && root.popupScreen !== null
+        screen: root.popupScreen
 
         anchors {
+            left: true
             bottom: true
         }
 
         margins {
             bottom: Math.round(root.menuBottomMargin)
-            left: Math.round(root.menuX)
+            left: Math.max(0, Math.min(Math.round(root.menuX), root.popupScreen ? root.popupScreen.width - Math.ceil(dockMenu.implicitWidth) : 0))
         }
 
         color: "transparent"
@@ -426,17 +227,16 @@ ShellRoot {
             onPinRequested: app => pinnedApps.pin(app)
             onUnpinRequested: app => pinnedApps.unpin(app.canonicalId || app.appId)
             onSettingsRequested: {
-                root.settingsOpen = true
-                root.menuOpen = false
+                root.openSettings(root.popupScreen)
             }
-            onCloseRequested: root.menuOpen = false
+            onCloseRequested: root.closeMenu()
             onFocusWindowRequested: win => {
                 root.focusWindowByAddress(win)
-                root.menuOpen = false
+                root.closeMenu()
             }
             onNewWindowRequested: app => {
                 root.launchApp(app)
-                root.menuOpen = false
+                root.closeMenu()
             }
         }
     }
@@ -444,7 +244,9 @@ ShellRoot {
     // ESC keybind via Hyprland (configured in hyprland.conf)
 
     PanelWindow {
-        visible: root.settingsOpen
+        visible: root.settingsOpen && root.popupScreen !== null
+        screen: root.popupScreen
+        WlrLayershell.keyboardFocus: root.settingsOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
         anchors {
             bottom: true
@@ -458,7 +260,7 @@ ShellRoot {
 
         color: "transparent"
         implicitWidth: 420
-        implicitHeight: 640
+        implicitHeight: root.popupScreen ? Math.min(640, root.popupScreen.height - 48) : 640
         exclusiveZone: 0
 
         SettingsPanel {

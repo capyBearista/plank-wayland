@@ -16,6 +16,8 @@ Item {
     property bool smartHideEnabled: false
     property bool isOverlapped: false
     property bool menuOpen: false
+    property bool attentionHold: false
+    signal settingsRequested()
     property string draggingKey: ""
     property real dragX: 0
     readonly property bool dragging: draggingKey !== ""
@@ -25,7 +27,7 @@ Item {
     readonly property int edgeTriggerHeight: settings ? settings.dockValues.edgeTriggerHeight : DockSettings.dock.edgeTriggerHeight
     property bool surfaceHovered: false
     property bool revealed: false
-    property bool hidden: (autoHide || (smartHideEnabled && isOverlapped)) && !revealed && !menuOpen && !dragging
+    property bool hidden: (autoHide || (smartHideEnabled && isOverlapped)) && !revealed && !menuOpen && !dragging && !attentionHold
 
     onSurfaceHoveredChanged: {
         if (surfaceHovered) {
@@ -163,6 +165,11 @@ Item {
         height: root.barHeight
         visible: root.totalItemCount > 0
 
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.RightButton
+            onClicked: root.settingsRequested()
+        }
         Rectangle {
             anchors.fill: parent
             radius: root.barRadius
@@ -196,6 +203,17 @@ Item {
             onExited: root.schedulePointerLeave()
         }
 
+
+        Rectangle {
+            visible: root.dragging
+            x: Math.max(0, Math.min(root.width - 2, root.dragX))
+            y: root.layerHeight - root.baseItemSize - root.bottomPadding
+            width: 2
+            height: root.baseItemSize
+            radius: 1
+            color: root.theme.indicatorColor || "white"
+            z: 20
+        }
 
         Repeater {
             model: [null].concat(root.apps)

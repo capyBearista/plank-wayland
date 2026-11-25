@@ -21,7 +21,7 @@ function validateDock(defaults, input) {
     const ranges = { iconSize:[32,96], zoomPercent:[100,300], bottomGap:[0,80], edgeTriggerHeight:[1,20], hideDelayMs:[0,5000], slideTime:[0,2000], indicatorSize:[1,16], attentionRevealMs:[0,30000], launchTimeoutMs:[500,30000], itemPadding:[0,20], horizPadding:[0,30], topPadding:[-20,30], bottomPadding:[0,30], hoverMenuDelayMs:[0,3000] }
     for (const key of Object.keys(ranges)) if (key in d) d[key] = clamp(d[key], ranges[key][0], ranges[key][1])
     if (!["system","light","dark","manual"].includes(d.themeMode)) d.themeMode = defaults.themeMode
-    if (!["off","native"].includes(d.minimizeMode)) d.minimizeMode = defaults.minimizeMode
+    if (!["off","native","workspace"].includes(d.minimizeMode)) d.minimizeMode = defaults.minimizeMode
     return d
 }
 

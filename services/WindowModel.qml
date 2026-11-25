@@ -364,7 +364,7 @@ Item {
                 root.scheduleRefreshRetries(2)
                 return
             }
-            if (/activewindow|urgent|movewindow|windowtitle|fullscreen/.test(name)) root.scheduleUpdate(false)
+            if (/activewindow|urgent|movewindow|windowtitle|fullscreen/.test(name)) root.scheduleUpdate(/movewindow|fullscreen/.test(name))
         }
     }
 

@@ -47,7 +47,24 @@ QtObject {
     // Native foreign-toplevel minimization is optional: the compositor may ignore it.
     function activate(win, mode) {
         if (!win) return false
+        const address = String(win.address || "")
+        const selector = /^0x[0-9a-fA-F]+$/.test(address) ? JSON.stringify("address:" + address) :
+            (/^[0-9a-fA-F]+$/.test(address) ? JSON.stringify("address:0x" + address) : "")
+        const workspace = win.workspace
+        const name = workspace ? String(workspace.name) : ""
+        const recovery = /^special:plank-minimized-([1-9][0-9]*)$/.exec(name)
+        // Encode original workspace in its name so restore survives a dock restart.
+        if (recovery && selector) {
+            Hyprland.dispatch("hl.dsp.window.move({ window = " + selector + ", workspace = " + JSON.stringify(recovery[1]) + ", follow = true })")
+            return true
+        }
         const handle = win.wayland
+        if (mode === "workspace" && win.activated && selector && workspace && workspace.id > 0 &&
+            !name.startsWith("special:") && !(handle && handle.fullscreen) && !(win.lastIpcObject && win.lastIpcObject.pinned)) {
+            const target = "special:plank-minimized-" + workspace.id
+            Hyprland.dispatch("hl.dsp.window.move({ window = " + selector + ", workspace = " + JSON.stringify(target) + ", follow = false })")
+            return true
+        }
         if (handle && handle.minimized) {
             handle.minimized = false
             handle.activate()
