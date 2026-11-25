@@ -33,3 +33,7 @@ Record versions, commit SHA, observed results and logs before updating the host 
 ## Follow-up: hover and save recovery
 
 Owner confirmed launcher, indicators, icon sizing, workspace actions, grouped windows, persistence, Cancel and pin reordering at ad89110. Magnification and intermittent save completion remained defective. Retest with auto-hide both on and off: sweep across icons at 150%, stop on an icon, leave the dock, open/close a grouped picker and drag a pin. All icons must return to normal size after leaving, hiding or opening a popup. Save repeatedly including no edits, confirm the status returns to idle, then verify restart persistence. If a save completion is lost, disk read-back should confirm it or the panel should report an error and allow reload/cancel within the bounded timeout. Fresh login and multi-monitor acceptance remain outstanding.
+
+## Magnification geometry and passive restore
+
+At 150%, hover the center, both ends and between slots. Icons should enlarge upward from the same visible baseline; only overlapping neighbors should move horizontally. Check that indicators follow their icons, clicking the hovered app works, and drag reorder still works. Repeat at 100% (no enlargement) and with magnification disabled. In workspace mode, minimize a single-window app and restore it without changing workspace: the cursor should remain on the dock, with no explicit focus request. Repeat from another workspace to check switch-and-focus. Hyprland can still choose a keyboard focus target itself.

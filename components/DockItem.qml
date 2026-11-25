@@ -20,7 +20,7 @@ Rectangle {
     property int itemIndex: 0
 
     property real dockMouseX: -10000
-    property real zoomProgress: 0
+    property var layoutItem: null
     property real dockWidth: 0
     property int itemCount: 0
     property real baseItemSize: 50
@@ -45,16 +45,9 @@ Rectangle {
 
     readonly property real baseStep: baseItemSize + dockSpacing
     readonly property real baseStart: (dockWidth - dockItemsWidth) / 2
-    readonly property real staticCenter: Math.floor(baseStart + itemIndex * baseStep + baseItemSize / 2)
-    property real distanceRaw: Math.abs(dockMouseX - staticCenter)
-    property real offsetBase: Math.min(distanceRaw, zoomIconSize)
-    property real offsetPercent: zoomIconSize > 0 ? Math.min(1, offsetBase / zoomIconSize) : 1
-    property real zoomInPercent: 1 + (zoomPercent - 1) * zoomProgress
-    property real zoomShape: 1 - Math.pow(offsetPercent, 2)
-    property real zoom: 1 + zoomShape * (zoomInPercent - 1)
-    property real offset: offsetBase * (zoomInPercent - 1) * (1 - offsetPercent / 3)
-    property real centerPosition: staticCenter + (dockMouseX > staticCenter ? -offset : offset)
-    property real lift: baseItemSize * zoom / 2 - baseItemSize / 2
+    readonly property real staticCenter: baseStart + itemIndex * baseStep + baseItemSize / 2
+    readonly property real zoom: layoutItem ? layoutItem.scale : 1
+    readonly property real centerPosition: layoutItem ? layoutItem.center : staticCenter
     property real bounceLift: 0
     // Fixed-size icons must not share overlapping mouse hit areas.
     readonly property real hitHorizontalMargin: Math.floor(Math.max(0, dockSpacing / 2))
@@ -103,7 +96,8 @@ Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.horizontalCenterOffset: root.centerPosition - root.staticCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: root.lift + root.bounceLift
+        // The image has a 5px inset. Compensate its scaled bottom margin only.
+        anchors.bottomMargin: root.bounceLift - 5 * (root.zoom - 1)
         width: root.baseItemSize
         height: root.baseItemSize
         scale: Math.max(0.1, root.zoom)
@@ -168,7 +162,9 @@ Rectangle {
 
     Rectangle {
         id: pendingRing
-        anchors.fill: iconShell
+        anchors.centerIn: iconShell
+        width: (root.baseItemSize - 6) * root.zoom
+        height: width
         radius: 9
         color: "transparent"
         border.width: 2
@@ -188,6 +184,7 @@ Rectangle {
         itemZoom: root.zoom
         settings: root.settings
         anchors.horizontalCenter: parent.horizontalCenter
+        anchors.horizontalCenterOffset: root.centerPosition - root.staticCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 1
     }

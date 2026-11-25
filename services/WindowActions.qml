@@ -83,8 +83,9 @@ Item {
             const existingWorkspace = Array.from(Hyprland.workspaces.values || []).some(w => w.id === recovery.id)
             if (!existingWorkspace && recovery.monitor && Array.from(Hyprland.monitors.values || []).some(m => m.name === recovery.monitor))
                 Hyprland.dispatch("hl.dsp.focus({ monitor = " + JSON.stringify(recovery.monitor) + " })")
-            Hyprland.dispatch("hl.dsp.window.move({ window = " + selector + ", workspace = " + JSON.stringify(String(recovery.id)) + ", follow = true })")
-            trackMove(address, "", recovery.id, true)
+            const follow = Policy.shouldFollowRestore(recovery, Hyprland.focusedWorkspace)
+            Hyprland.dispatch("hl.dsp.window.move({ window = " + selector + ", workspace = " + JSON.stringify(String(recovery.id)) + ", follow = " + (follow ? "true" : "false") + " })")
+            trackMove(address, "", recovery.id, follow)
             return true
         }
         if (decision === "minimize-workspace") {
@@ -96,7 +97,7 @@ Item {
         }
         if (decision === "restore-native") {
             handle.minimized = false
-            handle.activate()
+            if (!Policy.sameWorkspace(workspace, Hyprland.focusedWorkspace)) handle.activate()
             return true
         }
         if (decision === "minimize-native") {

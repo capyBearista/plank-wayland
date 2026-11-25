@@ -68,3 +68,34 @@ assert.equal(edit(D.dock,enabled,"zoomPercent",100).zoomPercent,100)
 assert.equal(edit(D.dock,enabled,"zoomEnabled",false).zoomEnabled,false)
 assert.equal(edit(D.dock,enabled,"missing",true),enabled)
 console.log("Reactive setting edit assertions passed.")
+
+const G = load("services/DockGeometry.js", ["layout","bounds"])
+const follow = load("services/WindowPolicy.js", ["shouldFollowRestore"]).shouldFollowRestore
+assert.equal(follow({id:3},{id:3}),false)
+assert.equal(follow({id:3},{id:2}),true)
+assert.equal(follow({id:3},null),true)
+const idle = G.layout(7,40,4,500,250,0,1.5)
+const center = idle[3].home
+const zoomed = G.layout(7,40,4,500,center,1,1.5)
+assert.equal(zoomed[3].scale,1.5)
+assert.equal(zoomed[3].center,center)
+assert.equal(zoomed[0].center,idle[0].home)
+assert.equal(zoomed[6].center,idle[6].home)
+assert.equal(zoomed[0].scale,1)
+assert.equal(zoomed[6].scale,1)
+assert.deepEqual(G.layout(7,40,4,500,-10000,1,1.5),idle)
+assert.deepEqual(G.bounds(idle,500,324,6),{left:88,width:324})
+for (const size of [32,40,64,96]) {
+    for (const spacing of [0,4,12]) {
+        for (const max of [1,1.5,2,3]) {
+            for (let x=0;x<=1400;x+=7) {
+                const slots=G.layout(9,size,spacing,1400,x,1,max)
+                for(let i=1;i<slots.length;i++) {
+                    assert.equal(slots[i].center-slots[i-1].center+1e-8 >= slots[i].half+slots[i-1].half+Math.min(6,spacing+10),true)
+                }
+                assert.equal(slots.every(s=>s.scale>=1 && s.scale<=max),true)
+            }
+        }
+    }
+}
+console.log("Dock geometry sweep and restore focus policy assertions passed.")

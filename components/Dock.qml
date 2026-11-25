@@ -1,5 +1,6 @@
 import QtQuick
 import "../settings.js" as DockSettings
+import "../services/DockGeometry.js" as Geometry
 
 Item {
     id: root
@@ -14,7 +15,7 @@ Item {
     property real pointerX: -10000
     property bool pointerInside: false
     readonly property bool dockHovered: pointerInside && !hidden && !menuOpen && !dragging
-    readonly property real dockMouseX: dockHovered ? pointerX : -10000
+    readonly property real dockMouseX: pointerX
     property real zoomProgress: dockHovered && zoomEnabled ? 1 : 0
     property bool autoHide: settings ? settings.dockValues.autoHide : DockSettings.dock.autoHide
     property bool smartHideEnabled: false
@@ -70,6 +71,8 @@ Item {
     readonly property real barWidth: Math.ceil(dockItemsWidth + barHorizontalPadding * 2)
     readonly property real barHeight: Math.ceil(baseItemSize + barTopPadding + barBottomPadding)
     readonly property real barRadius: Math.min(theme.radius || 16, barHeight / 2)
+    readonly property var iconLayout: Geometry.layout(totalItemCount, baseItemSize, dockSpacing, width, dockMouseX, zoomProgress, zoomPercent)
+    readonly property var barBounds: Geometry.bounds(iconLayout, width, barWidth, barHorizontalPadding)
 
     signal activate(var app)
     signal openMenu(var app)
@@ -151,9 +154,9 @@ Item {
 
     // Keep the visible dock frame tight; layerHeight is only the transparent zoom hit area.
     Item {
-        anchors.horizontalCenter: itemsLayer.horizontalCenter
+        x: root.barBounds.left
         anchors.bottom: itemsLayer.bottom
-        width: root.barWidth
+        width: root.barBounds.width
         height: root.barHeight
         visible: root.totalItemCount > 0
 
@@ -213,7 +216,7 @@ Item {
                 settings: root.settings
                 menuOpen: root.menuOpen
                 dockMouseX: root.dockMouseX
-                zoomProgress: root.zoomProgress
+                layoutItem: root.iconLayout[itemIndex] || null
                 dockWidth: root.width
                 itemCount: root.apps.length + 1
                 baseItemSize: root.baseItemSize
@@ -234,7 +237,7 @@ Item {
                 settings: root.settings
                 itemIndex: index
                 dockMouseX: root.dockMouseX
-                zoomProgress: root.zoomProgress
+                layoutItem: root.iconLayout[itemIndex] || null
                 dockWidth: root.width
                 itemCount: root.apps.length + 1
                 baseItemSize: root.baseItemSize

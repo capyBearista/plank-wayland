@@ -23,3 +23,8 @@ function actionFor(state) {
     if (state.mode === "native" && state.hasHandle) return "minimize-native"
     return "focus"
 }
+
+// Same-workspace restores must not request another focus/warp.
+function shouldFollowRestore(recovery, focusedWorkspace) {
+    return !(recovery && focusedWorkspace && recovery.id === focusedWorkspace.id)
+}
