@@ -12,13 +12,13 @@ Item {
     property real dockMouseX: -10000
     property bool dockHovered: false
     property real zoomProgress: 0
-    property bool autoHide: settings ? settings.autoHide : DockSettings.dock.autoHide
+    property bool autoHide: settings ? settings.autoHide : (root.settings ? root.settings.dockValues.autoHide : DockSettings.dock.autoHide)
     property bool smartHideEnabled: false
     property bool isOverlapped: false
     property bool menuOpen: false
     // Keep the screen-edge trigger stationary while the visible dock slides.
-    readonly property int bottomGap: 12
-    readonly property int edgeTriggerHeight: 3
+    readonly property int bottomGap: settings ? settings.dockValues.bottomGap : DockSettings.dock.bottomGap
+    readonly property int edgeTriggerHeight: settings ? settings.dockValues.edgeTriggerHeight : DockSettings.dock.edgeTriggerHeight
     property bool surfaceHovered: false
     property bool revealed: false
     property bool hidden: (autoHide || (smartHideEnabled && isOverlapped)) && !revealed && !menuOpen
@@ -34,7 +34,7 @@ Item {
 
     Timer {
         id: hideDelay
-        interval: 300
+        interval: root.settings ? root.settings.dockValues.hideDelayMs : DockSettings.dock.hideDelayMs
         repeat: false
         onTriggered: if (!root.surfaceHovered) root.revealed = false
     }
@@ -42,19 +42,19 @@ Item {
     readonly property real menuX: menuApp ? Math.max(0, Math.min(dockMaxWidth - 260, itemCenterForApp(menuApp) - 130)) : 0
     readonly property real menuBottomMargin: barHeight + bottomGap + 16
 
-    readonly property real baseItemSize: settings ? settings.iconSize : DockSettings.dock.iconSize
-    readonly property bool zoomEnabled: settings ? settings.zoomEnabled : DockSettings.dock.zoomEnabled
-    readonly property real zoomPercent: zoomEnabled ? (settings ? settings.zoomPercent : DockSettings.dock.zoomPercent) / 100 : 1
+    readonly property real baseItemSize: settings ? settings.iconSize : (root.settings ? root.settings.dockValues.iconSize : DockSettings.dock.iconSize)
+    readonly property bool zoomEnabled: settings ? settings.zoomEnabled : (root.settings ? root.settings.dockValues.zoomEnabled : DockSettings.dock.zoomEnabled)
+    readonly property real zoomPercent: zoomEnabled ? (settings ? settings.zoomPercent : (root.settings ? root.settings.dockValues.zoomPercent : DockSettings.dock.zoomPercent)) / 100 : 1
     readonly property real maxItemSize: baseItemSize * zoomPercent
-    readonly property real dockSpacing: DockSettings.dock.itemPadding * baseItemSize / 10
-    readonly property real dockPadding: Math.max(0, DockSettings.dock.horizPadding * baseItemSize / 10) + 28
-    readonly property real topPadding: DockSettings.dock.topPadding * baseItemSize / 10
-    readonly property real bottomPadding: DockSettings.dock.bottomPadding * baseItemSize / 10
+    readonly property real dockSpacing: (root.settings ? root.settings.dockValues.itemPadding : DockSettings.dock.itemPadding) * baseItemSize / 10
+    readonly property real dockPadding: Math.max(0, (root.settings ? root.settings.dockValues.horizPadding : DockSettings.dock.horizPadding) * baseItemSize / 10) + 28
+    readonly property real topPadding: (root.settings ? root.settings.dockValues.topPadding : DockSettings.dock.topPadding) * baseItemSize / 10
+    readonly property real bottomPadding: (root.settings ? root.settings.dockValues.bottomPadding : DockSettings.dock.bottomPadding) * baseItemSize / 10
     readonly property int totalItemCount: apps.length + 1
     readonly property real dockItemsWidth: Math.max(0, totalItemCount * baseItemSize + (totalItemCount - 1) * dockSpacing)
     readonly property real dockMaxWidth: Math.ceil(dockItemsWidth + dockPadding * 2 + (maxItemSize - baseItemSize) * 2)
     readonly property real layerHeight: Math.ceil(baseItemSize + Math.max(0, -topPadding) + bottomPadding + (maxItemSize - baseItemSize) + 40)
-    readonly property real barHorizontalPadding: Math.max(6, DockSettings.dock.horizPadding * baseItemSize / 10 + 6)
+    readonly property real barHorizontalPadding: Math.max(6, (root.settings ? root.settings.dockValues.horizPadding : DockSettings.dock.horizPadding) * baseItemSize / 10 + 6)
     readonly property real barTopPadding: Math.max(5, topPadding > 0 ? topPadding : 5)
     readonly property real barBottomPadding: Math.max(5, bottomPadding)
     readonly property real barWidth: Math.ceil(dockItemsWidth + barHorizontalPadding * 2)
@@ -96,7 +96,7 @@ Item {
     implicitWidth: dockMaxWidth
     implicitHeight: baseItemSize + topPadding + bottomPadding
     y: parent.height - height - bottomGap
-        + (hidden ? Math.max(DockSettings.dock.hideOffset, barHeight + bottomGap + 2) : 0)
+        + (hidden ? Math.max((root.settings ? root.settings.dockValues.hideOffset : DockSettings.dock.hideOffset), barHeight + bottomGap + 2) : 0)
 
     // The transparent layer stays larger so magnified icons have room above the bar.
 
@@ -104,14 +104,14 @@ Item {
 
     Behavior on zoomProgress {
         NumberAnimation {
-            duration: Math.max(0, DockSettings.dock.zoomDuration)
+            duration: Math.max(0, (root.settings ? root.settings.dockValues.zoomDuration : DockSettings.dock.zoomDuration))
             easing.type: Easing.OutCubic
         }
     }
 
     Behavior on y {
         NumberAnimation {
-            duration: Math.max(0, DockSettings.dock.slideTime)
+            duration: Math.max(0, (root.settings ? root.settings.dockValues.slideTime : DockSettings.dock.slideTime))
             easing.type: Easing.OutCubic
         }
     }

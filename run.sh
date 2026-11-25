@@ -4,29 +4,17 @@ set -euo pipefail
 script_path="$(readlink -f -- "${BASH_SOURCE[0]}")"
 project_dir="$(cd -- "$(dirname -- "$script_path")" && pwd)"
 
-if [[ ! -w "$project_dir/settings.js" || ! -w "$project_dir/apps.js" ]]; then
-  user_dir="${XDG_CONFIG_HOME:-$HOME/.config}/plank-wayland"
-  mkdir -p "$user_dir"
-
-  for path in shell.qml i18n.js README.md run.sh components services icons; do
-    rm -rf "$user_dir/$path"
-    cp -a "$project_dir/$path" "$user_dir/$path"
-  done
-
-  [[ -e "$user_dir/settings.js" ]] || cp -a "$project_dir/settings.js" "$user_dir/settings.js"
-  [[ -e "$user_dir/apps.js" ]] || cp -a "$project_dir/apps.js" "$user_dir/apps.js"
-  project_dir="$user_dir"
-fi
+command -v quickshell >/dev/null || { echo "Quickshell is required" >&2; exit 1; }
+command -v python3 >/dev/null || { echo "Python 3 is required" >&2; exit 1; }
+python3 "$project_dir/scripts/configure.py"
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/plank-wayland"
 
 follow_icon_theme_enabled() {
-  local line
-  [[ -r "$project_dir/settings.js" ]] || return 0
-  while IFS= read -r line; do
-    if [[ "$line" =~ "followSystemIconTheme"[[:space:]]*:[[:space:]]*false ]]; then
-      return 1
-    fi
-  done < "$project_dir/settings.js"
-  return 0
+  python3 - "$config_dir/settings.json" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f:
+    sys.exit(0 if json.load(f).get("dock", {}).get("followSystemIconTheme", True) else 1)
+PY
 }
 
 detect_icon_theme() {

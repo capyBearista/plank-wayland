@@ -21,7 +21,26 @@ var dock = {
     "autoHide": true,
     "smartHide": false,
     "hideOffset": 100,
-    "menuBottomMargin": 118
+    "menuBottomMargin": 118,
+    "bottomGap": 12,
+    "edgeTriggerHeight": 3,
+    "hideDelayMs": 300,
+    "hoverMenuDelayMs": 400,
+    "themeMode": "system",
+    "lightStyle": "clear-glass",
+    "darkStyle": "clear-glass",
+    "launcherIcon": "",
+    "launcherCommand": [],
+    "excludedApps": ["xwaylandvideobridge"],
+    "identityOverrides": {},
+    "excludedMonitors": [],
+    "minimizeMode": "off",
+    "attentionReveal": true,
+    "attentionRevealMs": 5000,
+    "attentionInFullscreen": false,
+    "launchFeedback": true,
+    "launchTimeoutMs": 10000,
+    "dragReorder": true
 }
 
 var styleName = "clear-glass"

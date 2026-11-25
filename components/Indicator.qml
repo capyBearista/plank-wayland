@@ -14,8 +14,8 @@ Rectangle {
     readonly property bool legacyStyle: theme.indicatorStyle === "legacy"
     readonly property color indicatorColor: customColor !== "transparent" ? customColor : theme.indicatorColor
 
-    width: active ? (lineStyle ? DockSettings.dock.indicatorSize * 3.2 : DockSettings.dock.indicatorSize * Math.max(1, Math.min(itemZoom, 1.35))) : 0
-    height: active ? (lineStyle ? Math.max(2, DockSettings.dock.indicatorSize / 2) : DockSettings.dock.indicatorSize) : 0
+    width: active ? (lineStyle ? (root.settings ? root.settings.dockValues.indicatorSize : DockSettings.dock.indicatorSize) * 3.2 : (root.settings ? root.settings.dockValues.indicatorSize : DockSettings.dock.indicatorSize) * Math.max(1, Math.min(itemZoom, 1.35))) : 0
+    height: active ? (lineStyle ? Math.max(2, (root.settings ? root.settings.dockValues.indicatorSize : DockSettings.dock.indicatorSize) / 2) : (root.settings ? root.settings.dockValues.indicatorSize : DockSettings.dock.indicatorSize)) : 0
     radius: height / 2
     color: indicatorColor
     opacity: active ? (legacyStyle ? 0.65 : 0.95) : 0

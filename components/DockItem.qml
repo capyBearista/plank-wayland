@@ -9,7 +9,7 @@ Rectangle {
     required property var app
     property var settings: null
     readonly property var theme: settings ? settings.theme : DockSettings.theme
-    readonly property bool followSystemIconTheme: settings ? settings.followSystemIconTheme : (DockSettings.dock.followSystemIconTheme !== false)
+    readonly property bool followSystemIconTheme: settings ? settings.followSystemIconTheme : ((root.settings ? root.settings.dockValues.followSystemIconTheme : DockSettings.dock.followSystemIconTheme) !== false)
     readonly property int iconThemeRevision: settings ? settings.iconThemeRevision : 0
     readonly property string rawIcon: String(root.app.icon || "")
     readonly property bool rawFileIcon: rawIcon.startsWith("/")
@@ -255,15 +255,15 @@ Rectangle {
         NumberAnimation {
             target: root
             property: "bounceLift"
-            to: Math.min(root.baseItemSize * 0.3, root.baseItemSize * DockSettings.dock.launchBounceHeight)
-            duration: Math.max(45, DockSettings.dock.launchBounceTime * 0.32)
+            to: Math.min(root.baseItemSize * 0.3, root.baseItemSize * (root.settings ? root.settings.dockValues.launchBounceHeight : DockSettings.dock.launchBounceHeight))
+            duration: Math.max(45, (root.settings ? root.settings.dockValues.launchBounceTime : DockSettings.dock.launchBounceTime) * 0.32)
             easing.type: Easing.OutCubic
         }
         NumberAnimation {
             target: root
             property: "bounceLift"
             to: 0
-            duration: Math.max(60, DockSettings.dock.launchBounceTime * 0.42)
+            duration: Math.max(60, (root.settings ? root.settings.dockValues.launchBounceTime : DockSettings.dock.launchBounceTime) * 0.42)
             easing.type: Easing.OutBack
         }
     }

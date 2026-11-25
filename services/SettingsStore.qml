@@ -2,10 +2,19 @@ import Quickshell.Io
 import Quickshell
 import QtQuick
 import "../settings.js" as DockSettings
+import "Config.js" as Config
 
 Item {
     id: root
 
+    readonly property string configDir: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/plank-wayland"
+    property var dockValues: Object.assign({}, DockSettings.dock)
+    property var styleOverrides: ({})
+    property string errorMessage: ""
+    property bool saving: false
+    property bool externalConflict: false
+    property string savedText: ""
+    property string pendingSave: ""
     property string styleName: DockSettings.styleName
     property string uiLanguage: DockSettings.uiLanguage || "zh-CN"
     property int iconSize: DockSettings.dock.iconSize
@@ -37,7 +46,7 @@ Item {
     Component.onCompleted: refreshSystemIconTheme(false)
 
     function styleDefaults(name) {
-        const style = DockSettings.styles[name] || DockSettings.styles.macos
+        const style = Object.assign({}, DockSettings.styles[name] || DockSettings.styles.macos, styleOverrides[name] || {})
         return style
     }
 
@@ -208,54 +217,69 @@ Item {
         changed()
     }
 
-    function save() {
-        const dock = {
-            iconSize: iconSize,
-            zoomEnabled: zoomEnabled,
-            followSystemIconTheme: followSystemIconTheme,
-            zoomPercent: zoomPercent,
-            itemPadding: DockSettings.dock.itemPadding,
-            horizPadding: DockSettings.dock.horizPadding,
-            topPadding: DockSettings.dock.topPadding,
-            bottomPadding: DockSettings.dock.bottomPadding,
-            indicatorSize: DockSettings.dock.indicatorSize,
-            zoomDuration: DockSettings.dock.zoomDuration,
-            clickTime: DockSettings.dock.clickTime,
-            slideTime: DockSettings.dock.slideTime,
-            fadeTime: DockSettings.dock.fadeTime,
-            launchBounceTime: DockSettings.dock.launchBounceTime,
-            launchBounceHeight: DockSettings.dock.launchBounceHeight,
-            urgentBounceTime: DockSettings.dock.urgentBounceTime,
-            urgentBounceHeight: DockSettings.dock.urgentBounceHeight,
-            autoHide: autoHide,
-            smartHide: smartHide,
-            hideOffset: DockSettings.dock.hideOffset,
-            menuBottomMargin: DockSettings.dock.menuBottomMargin
+    function loadSettings(force) {
+        const text = file.text()
+        if (!text || text === savedText) return
+        if ((dirty || saving) && !force) {
+            if (text !== pendingSave) {
+                externalConflict = true
+                errorMessage = "Configuration changed on disk. Reload to discard unsaved edits."
+            }
+            return
         }
+        try {
+            const value = JSON.parse(text)
+            if (!value || value.schemaVersion !== 1 || !value.dock || typeof value.dock !== "object" || Array.isArray(value.dock)) throw Error("Invalid settings schema")
+            const d = Config.validateDock(DockSettings.dock, value.dock)
+            dockValues = d
+            styleOverrides = value.styleOverrides && typeof value.styleOverrides === "object" && !Array.isArray(value.styleOverrides) ? value.styleOverrides : ({})
+            styleName = DockSettings.styles[value.styleName] ? value.styleName : DockSettings.styleName
+            uiLanguage = typeof value.uiLanguage === "string" ? value.uiLanguage : (DockSettings.uiLanguage || "en")
+            iconSize = d.iconSize
+            zoomPercent = d.zoomPercent
+            zoomEnabled = d.zoomEnabled
+            followSystemIconTheme = d.followSystemIconTheme
+            autoHide = d.autoHide
+            smartHide = d.smartHide
+            indicatorStyle = ["line","dot","legacy"].includes(value.indicatorStyle) ? value.indicatorStyle : (styleDefaults(styleName).indicatorStyle || "line")
+            radiusAdjust = 0
+            opacityAdjust = 0
+            savedText = text
+            dirty = false
+            externalConflict = false
+            errorMessage = ""
+            refreshSystemIconTheme(false)
+            changed()
+        } catch (e) { errorMessage = "Settings not applied: " + e }
+    }
 
-        const launcher = {
-            layoutMode: launcherLayoutMode,
-            backgroundStyle: launcherBackgroundStyle,
-            showLabels: launcherShowLabels,
-            hoverMagnification: launcherHoverMagnification,
-            pressFeedback: launcherPressFeedback,
-            iconScale: launcherIconScale
-        }
-
-        const styles = JSON.parse(JSON.stringify(DockSettings.styles))
-        if (styles[styleName]) styles[styleName] = buildTheme(styleName, indicatorStyle)
-
-        const text = ".pragma library\n\n"
-            + "var dock = " + JSON.stringify(dock, null, 4) + "\n\n"
-            + "var styleName = " + JSON.stringify(styleName) + "\n\n"
-            + "var uiLanguage = " + JSON.stringify(uiLanguage) + "\n\n"
-            + "var launcher = " + JSON.stringify(launcher, null, 4) + "\n\n"
-            + "var styles = " + JSON.stringify(styles, null, 4) + "\n\n"
-            + "var theme = styles[styleName] || styles.macos\n"
-
-        file.setText(text)
+    function reloadSettings() {
+        if (saving) return
         dirty = false
-        changed()
+        savedText = ""
+        file.reload()
+    }
+
+    function setOption(key, value) {
+        if (!(key in DockSettings.dock)) return
+        const next = Object.assign({}, dockValues)
+        next[key] = value
+        dockValues = Config.validateDock(DockSettings.dock, next)
+        markDirty()
+    }
+
+    function save() {
+        if (saving || externalConflict) return
+        const dock = Object.assign({}, dockValues, {
+            iconSize: iconSize, zoomEnabled: zoomEnabled,
+            followSystemIconTheme: followSystemIconTheme, zoomPercent: zoomPercent,
+            autoHide: autoHide, smartHide: smartHide
+        })
+        const overrides = Object.assign({}, styleOverrides)
+        if (radiusAdjust || opacityAdjust) overrides[styleName] = buildTheme(styleName, indicatorStyle)
+        pendingSave = JSON.stringify({schemaVersion: 1, dock: dock, styleName: styleName, uiLanguage: uiLanguage, indicatorStyle: indicatorStyle, styleOverrides: overrides}, null, 4) + "\n"
+        saving = true
+        file.setText(pendingSave)
     }
 
     function setStyle(name) {
@@ -346,10 +370,27 @@ Item {
 
     FileView {
         id: file
-        path: Quickshell.shellPath("settings.js")
+        path: root.configDir + "/settings.json"
+        preload: true
+        watchChanges: true
         blockWrites: false
         atomicWrites: true
         printErrors: true
+        onLoaded: root.loadSettings(false)
+        onFileChanged: if (!root.saving) reload()
+        onSaved: {
+            root.savedText = root.pendingSave
+            root.saving = false
+            root.dirty = false
+            root.radiusAdjust = 0
+            root.opacityAdjust = 0
+            root.savedText = ""
+            reload()
+        }
+        onSaveFailed: {
+            root.saving = false
+            root.errorMessage = "Could not save settings."
+        }
     }
 
     Timer {
