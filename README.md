@@ -116,3 +116,9 @@ Bash syntax checks, Python migration tests and optional Node-based JavaScript lo
 Stop the new dock and disable its user service if enabled. Restore minimized windows first. To inspect the old baseline without changing your main branch, use a separate worktree at `7cb2fd2` and copy your saved legacy settings and pins there. Keep new XDG files; the old version does not use them. Never overwrite user settings with repository defaults just to test.
 
 Upstream: [franklinbravos/plank-wayland](https://github.com/franklinbravos/plank-wayland). API references: [Quickshell 0.2.1](https://quickshell.org/docs/v0.2.1/), [Hyprland dispatchers](https://wiki.hypr.land/0.57.0/configuring/core/dispatchers/), [UWSM](https://wiki.hypr.land/useful-utilities/uwsm/).
+
+### Stabilization update
+
+Settings now use a categorized Qt Quick Controls panel with Appearance, Behavior, Visibility, Applications, Displays, and Advanced sections. Changes preview live; Save persists them and Cancel/Close restores saved preferences. Pin edits in Applications are saved immediately and are separate from preference edits. Existing XDG files require no migration. The first time magnification is enabled from 100%, it changes to 150%.
+
+Workspace minimize uses the currently focused workspace rather than the active window flag. A move is confirmed asynchronously from compositor state; failures are logged without retrying the move. Native minimize remains compositor-dependent. Named/special workspaces (other than reserved recovery workspaces), fullscreen and pinned windows are not moved into a hidden workspace.

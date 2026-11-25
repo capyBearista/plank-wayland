@@ -1,12 +1,12 @@
 # Configuration reference
 
-Edit settings.json under the XDG config directory, or open the dock settings panel. The format is an object with schemaVersion: 1, dock, styleName, uiLanguage, indicatorStyle and optional styleOverrides. Defaults live in settings.js; keys in dock are merged against defaults and bounded where appropriate. Malformed JSON retains last valid runtime settings; the panel reports conflicts and save errors. Save UI edits explicitly. Closing the panel retains unsaved live edits; Reload / discard unsaved edits re-reads the file.
+Edit settings.json under the XDG config directory, or open the dock settings panel. The format is an object with schemaVersion: 1, dock, styleName, uiLanguage, indicatorStyle and optional styleOverrides. Defaults live in settings.js; keys in dock are merged against defaults and bounded where appropriate. Malformed JSON retains last valid runtime settings; the panel reports conflicts and save errors. Save UI edits explicitly. Cancel or Close restores saved settings; pin changes are saved separately and immediately.
 
 | dock key | Default | Purpose |
 | --- | --- | --- |
 | iconSize | 36 | Icon size (32–96) |
 | zoomEnabled | false | Magnification |
-| zoomPercent | 100 | Magnification amount |
+| zoomPercent | 150 | Magnification amount |
 | followSystemIconTheme | true | Use detected GTK/KDE icon theme |
 | itemPadding | 2.5 | Spacing |
 | horizPadding | 0 | Horizontal padding |
@@ -49,3 +49,5 @@ Examples (merge with existing dock object; do not replace the entire file):
 Pins are an ordered JSON array of objects with appId, optional canonicalId, desktopId, name, icon, iconAliases, fallback and command. Do not edit the file concurrently with pin operations. Exclusions hide pins without deleting them.
 
 Known limits: per-monitor filtering of application lists is not enabled; all monitors share the same app list. Pin reordering is pinned-only. Notification-only events are not treated as compositor urgency. Direct refraction, window thumbnails and other unselected backlog features are outside this implementation.
+
+The Appearance tab has independent light and dark preset selectors. Radius and opacity adjustments apply to the effective preset and are stored in styleOverrides. The first enable of magnification from 100% sets it to 150%; manually selecting 100% remains valid. Running indicators use a neutral line and a longer blue focused line. The Advanced tab can reset preferences as a live preview without touching pinned apps.

@@ -18,3 +18,14 @@ This is a test checklist, not a deployment record. Start the dock manually and k
 - [ ] Logout/login and reboot; verify one instance, no KDE autostart, correct theme and pins. Disable service and verify manual startup still works.
 
 Record versions, commit SHA, observed results and logs before updating the host deployment record.
+
+## Stabilization retest
+
+- [ ] Launcher ring is absent and there are no undefined boolean warnings.
+- [ ] Running apps show neutral indicators; focused app has stronger blue indicator. Closed pins have none.
+- [ ] Change icon size 36 → 48 → 36 through slider and spin box; check immediate dock geometry and persistence.
+- [ ] Enable magnification at 150%; hover across each slot and move out without flicker or incorrect activation.
+- [ ] Test Cancel and Save from every tab, theme-specific opacity and radius, identity validation, and reset preview.
+- [ ] Open two Firefox windows; hover/click the one icon and select each listed window.
+- [ ] Workspace mode: repeatedly minimize and restore a disposable window in the focused numeric workspace; click a window on another workspace to focus, then click again to minimize. Check logs for confirmed moves.
+- [ ] Confirm only one service process and reboot/login behavior. Hotplug remains outstanding until a second screen is available.

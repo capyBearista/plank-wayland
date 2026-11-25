@@ -62,7 +62,9 @@ Item {
     }
 
     function adjustAlpha(color, delta) {
-        if (typeof color !== "string" || color === "transparent" || color[0] !== "#" || color.length !== 9) return color
+        if (typeof color !== "string" || color === "transparent" || color[0] !== "#") return color
+        if (color.length === 7) color = "#ff" + color.slice(1)
+        if (color.length !== 9) return color
         const alpha = parseInt(color.slice(1, 3), 16)
         return "#" + alphaHex(alpha + delta) + color.slice(3)
     }
@@ -318,6 +320,19 @@ Item {
         }
         next[effectiveStyle] = base
         styleOverrides = Config.validateStyles(DockSettings.styles, next)
+        markDirty()
+    }
+
+    function resetAllSettings() {
+        if (saving) return
+        dockValues = Config.validateDock(DockSettings.dock, {})
+        styleName = DockSettings.styleName
+        uiLanguage = DockSettings.uiLanguage || "en"
+        indicatorStyle = DockSettings.theme.indicatorStyle
+        styleOverrides = ({})
+        radiusAdjust = 0
+        opacityAdjust = 0
+        refreshSystemIconTheme(false)
         markDirty()
     }
 

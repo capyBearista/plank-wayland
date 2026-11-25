@@ -252,13 +252,14 @@ ShellRoot {
         }
 
         color: "transparent"
-        implicitWidth: 420
-        implicitHeight: root.popupScreen ? Math.min(640, root.popupScreen.height - 48) : 640
+        implicitWidth: root.popupScreen ? Math.min(690, root.popupScreen.width - 48) : 690
+        implicitHeight: root.popupScreen ? Math.min(690, root.popupScreen.height - 100) : 690
         exclusiveZone: 0
 
         SettingsPanel {
             anchors.fill: parent
             store: settingsStore
+            pinsStore: pinnedApps
             onCloseRequested: root.settingsOpen = false
         }
     }
