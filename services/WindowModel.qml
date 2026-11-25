@@ -12,7 +12,11 @@ Item {
     readonly property var overrides: options.identityOverrides || ({})
     readonly property var excludedApps: options.excludedApps || ["xwaylandvideobridge"]
     readonly property var pinnedDockApps: pinnedApps.map(appFromPinned).filter(app => !isExcluded(app))
-    onOptionsChanged: { entryCache = Object.create(null); scheduleUpdate(false) }
+    onOptionsChanged: {
+        entryCache = Object.create(null)
+        if (options.launchFeedback === false) pendingApps = Object.create(null)
+        scheduleUpdate(false)
+    }
     function isExcluded(app) { return Identity.excluded(app, excludedApps, overrides) }
     function canonical(appId) {
         const preferred = Identity.override(appId, overrides)

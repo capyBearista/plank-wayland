@@ -16,7 +16,7 @@ Rectangle {
     readonly property bool launcherIcon: root.app.launcherIcon === true
     readonly property string lookupIcon: rawFileIcon ? String(root.app.appId || root.app.name || "") : rawIcon
     readonly property var lookupIcons: buildLookupIcons()
-    readonly property string resolvedThemeIcon: settings ? settings.iconSource(lookupIcons, iconThemeRevision, rawFileIcon ? rawIcon : "") : resolveThemeIcon(lookupIcon, followSystemIconTheme, iconThemeRevision, rawFileIcon ? rawIcon : "")
+    readonly property string resolvedThemeIcon: launcherIcon && rawFileIcon ? ("file://" + rawIcon) : (settings ? settings.iconSource(lookupIcons, iconThemeRevision, rawFileIcon ? rawIcon : "") : resolveThemeIcon(lookupIcon, followSystemIconTheme, iconThemeRevision, rawFileIcon ? rawIcon : ""))
     property int itemIndex: 0
 
     property real dockMouseX: -10000

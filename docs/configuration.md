@@ -1,6 +1,6 @@
 # Configuration reference
 
-Edit settings.json under the XDG config directory, or open the dock settings panel. The format is an object with schemaVersion: 1, dock, styleName, uiLanguage, indicatorStyle and optional styleOverrides. Defaults live in settings.js; keys in dock are merged against defaults and bounded where appropriate. Malformed JSON retains last valid runtime settings; the panel reports conflicts and save errors. Save UI edits explicitly.
+Edit settings.json under the XDG config directory, or open the dock settings panel. The format is an object with schemaVersion: 1, dock, styleName, uiLanguage, indicatorStyle and optional styleOverrides. Defaults live in settings.js; keys in dock are merged against defaults and bounded where appropriate. Malformed JSON retains last valid runtime settings; the panel reports conflicts and save errors. Save UI edits explicitly. Closing the panel retains unsaved live edits; Reload / discard unsaved edits re-reads the file.
 
 | dock key | Default | Purpose |
 | --- | --- | --- |

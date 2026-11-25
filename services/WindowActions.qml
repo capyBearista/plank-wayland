@@ -52,16 +52,23 @@ QtObject {
             (/^[0-9a-fA-F]+$/.test(address) ? JSON.stringify("address:0x" + address) : "")
         const workspace = win.workspace
         const name = workspace ? String(workspace.name) : ""
-        const recovery = /^special:plank-minimized-([1-9][0-9]*)$/.exec(name)
+        const recovery = /^special:plank-minimized-([1-9][0-9]*)(?:--([a-zA-Z0-9_.-]+))?$/.exec(name)
         // Encode original workspace in its name so restore survives a dock restart.
         if (recovery && selector) {
+            const destination = Number(recovery[1])
+            const existingWorkspace = Array.from(Hyprland.workspaces.values || []).some(w => w.id === destination)
+            const originalMonitor = recovery[2] || ""
+            if (!existingWorkspace && originalMonitor && Array.from(Hyprland.monitors.values || []).some(m => m.name === originalMonitor)) {
+                Hyprland.dispatch("hl.dsp.focus({ monitor = " + JSON.stringify(originalMonitor) + " })")
+            }
             Hyprland.dispatch("hl.dsp.window.move({ window = " + selector + ", workspace = " + JSON.stringify(recovery[1]) + ", follow = true })")
             return true
         }
         const handle = win.wayland
         if (mode === "workspace" && win.activated && selector && workspace && workspace.id > 0 &&
             !name.startsWith("special:") && !(handle && handle.fullscreen) && !(win.lastIpcObject && win.lastIpcObject.pinned)) {
-            const target = "special:plank-minimized-" + workspace.id
+            const monitorName = win.monitor ? String(win.monitor.name) : ""
+            const target = "special:plank-minimized-" + workspace.id + (/^[a-zA-Z0-9_.-]+$/.test(monitorName) ? "--" + monitorName : "")
             Hyprland.dispatch("hl.dsp.window.move({ window = " + selector + ", workspace = " + JSON.stringify(target) + ", follow = false })")
             return true
         }

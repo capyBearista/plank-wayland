@@ -81,7 +81,7 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: root.closeRequested()
+                    onClicked: { root.forceActiveFocus(); root.closeRequested() }
                 }
             }
         }
@@ -285,11 +285,11 @@ Rectangle {
             settings: root.store
             text: "Reload / discard unsaved edits"
             enabled: !root.store.saving
-            onClicked: root.store.reloadSettings()
+            onClicked: { root.forceActiveFocus(); root.store.reloadSettings() }
         }
         Text {
             Layout.fillWidth: true
-            text: root.t("savedHint")
+            text: root.t("savedHint") + " Unsaved changes remain live until saved or discarded."
             color: root.textColor
             opacity: 0.55
             wrapMode: Text.WordWrap
@@ -302,7 +302,7 @@ Rectangle {
             neutral: false
             enabled: root.store && !root.store.saving && !root.store.externalConflict
             text: root.store && root.store.saving ? "Saving…" : (root.store && root.store.dirty ? root.t("saveChanges") : root.t("saved"))
-            onClicked: if (root.store) root.store.save()
+            onClicked: if (root.store) { root.forceActiveFocus(); root.store.save() }
         }
         }
     }

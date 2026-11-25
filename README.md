@@ -65,13 +65,13 @@ The Hyprland layer namespace is `plank-wayland-dock` on every display. Existing 
 
 ### Experimental minimize / restore
 
-Default `minimizeMode: "off"` preserves proven focus behavior. Try `"native"` first: the Wayland minimize request can be ignored by Hyprland. If not supported, opt into `"workspace"` mode. That moves a focused ordinary numeric-workspace window to `special:plank-minimized-N` where N is its original workspace number. Clicking its taskbar icon restores the window to N. Named, fullscreen and pinned windows are not moved; grouped apps retain the picker. Workspace topology changes can alter the display used by the original workspace. No fallback runs automatically.
+Default `minimizeMode: "off"` preserves proven focus behavior. Try `"native"` first: the Wayland minimize request can be ignored by Hyprland. If not supported, opt into `"workspace"` mode. That moves a focused ordinary numeric-workspace window to `special:plank-minimized-N--MONITOR` where N is its original workspace number and MONITOR is its original display (when known). Clicking its taskbar icon restores the window to N, preferring the original display when that workspace no longer exists. Named, fullscreen and pinned windows are not moved; grouped apps retain the picker. If a workspace or monitor was moved/disconnected, current topology takes precedence. No fallback runs automatically.
 
-Recovery even if the dock crashes: open the special workspace from a Hyprland terminal (replace N with actual original number), then move the window back using your normal keybinding:
+Recovery even if the dock crashes: open the special workspace from a Hyprland terminal (replace the example name with the exact special-workspace name from hyprctl clients, without its special: prefix), then move the window back using your normal keybinding:
 
 ```bash
 hyprctl clients
-hyprctl dispatch 'hl.dsp.workspace.toggle_special("plank-minimized-1")'
+hyprctl dispatch 'hl.dsp.workspace.toggle_special("plank-minimized-1--eDP-1")'
 ```
 
 Or restore a specific window by replacing the example address and workspace:

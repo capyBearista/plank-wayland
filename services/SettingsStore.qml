@@ -13,6 +13,7 @@ Item {
     property string errorMessage: ""
     property bool saving: false
     property bool externalConflict: false
+    property bool discardRequested: false
     property string savedText: ""
     property string pendingSave: ""
     property string styleName: DockSettings.styleName
@@ -223,7 +224,7 @@ Item {
     function loadSettings(force) {
         const text = file.text()
         if (!text) { errorMessage = "Settings file is empty or unavailable; using last valid settings."; return }
-        if (text === savedText) return
+        if (text === savedText && !force) return
         if ((dirty || saving) && !force) {
             if (text !== pendingSave) {
                 externalConflict = true
@@ -261,8 +262,7 @@ Item {
 
     function reloadSettings() {
         if (saving) return
-        dirty = false
-        savedText = ""
+        discardRequested = true
         file.reload()
     }
 
@@ -383,17 +383,27 @@ Item {
         blockWrites: false
         atomicWrites: true
         printErrors: true
-        onLoaded: root.loadSettings(false)
-        onLoadFailed: root.errorMessage = "Settings file could not be read; using last valid settings."
+        onLoaded: {
+            root.loadSettings(root.discardRequested)
+            root.discardRequested = false
+        }
+        onLoadFailed: {
+            root.discardRequested = false
+            root.errorMessage = "Settings file could not be read; using last valid settings."
+        }
         onFileChanged: if (!root.saving) reload()
         onSaved: {
             root.savedText = root.pendingSave
-            try { root.styleOverrides = JSON.parse(root.pendingSave).styleOverrides } catch (e) {}
+            try {
+                const written = JSON.parse(root.pendingSave)
+                root.styleOverrides = written.styleOverrides
+                root.dockValues = Config.validateDock(DockSettings.dock, written.dock)
+            } catch (e) {}
             root.saving = false
             root.dirty = false
             root.radiusAdjust = 0
             root.opacityAdjust = 0
-            root.savedText = ""
+            root.errorMessage = ""
             reload()
         }
         onSaveFailed: {

@@ -28,3 +28,29 @@ class ConfigureTests(unittest.TestCase):
             pins = json.loads((folder / "config/pinned-apps.json").read_text())
             self.assertEqual([p["appId"] for p in pins], ["one","two"])
             self.assertTrue((folder / "config/migration-backup/apps.js").exists())
+
+    def test_legacy_settings_preserve_custom_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            legacy = folder / "legacy"
+            legacy.mkdir()
+            (legacy / "settings.js").write_text('var dock = {"iconSize":48,"autoHide":false}\nvar styleName = "custom"\nvar uiLanguage = "en"\nvar styles = {"custom":{"indicatorStyle":"dot"}}\n')
+            (legacy / "apps.js").write_text('var items = [{"appId":"test","command":["example"]}]')
+            module.initialize(folder / "config", legacy)
+            data = json.loads((folder / "config/settings.json").read_text())
+            self.assertEqual(data["dock"]["iconSize"], 48)
+            self.assertFalse(data["dock"]["autoHide"])
+            self.assertEqual(data["dock"]["themeMode"], "manual")
+            self.assertEqual(data["dock"]["bottomGap"], 12)
+            self.assertTrue((folder / "config/migration-backup/settings.js").exists())
+
+    def test_invalid_pins_do_not_initialize(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            legacy = folder / "legacy"
+            legacy.mkdir()
+            (legacy / "apps.js").write_text('var items = [{"appId":""}]')
+            with self.assertRaises(ValueError):
+                module.initialize(folder / "config", legacy)
+            self.assertFalse((folder / "config/settings.json").exists())
+            self.assertFalse((folder / "config/pinned-apps.json").exists())

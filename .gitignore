@@ -1,3 +1,22 @@
+# Qt/QML
+*.qmldir
+.qmlls.ini
+*.qmlc
+*.jsc
+
+# macOS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+
+# Python tests
 __pycache__/
 *.pyc
-.qmlls.ini
