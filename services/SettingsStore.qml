@@ -47,6 +47,7 @@ Item {
     readonly property var theme: buildTheme(effectiveStyle, indicatorStyle)
 
     signal changed()
+    signal settingsReloaded(bool success)
 
     Component.onCompleted: refreshSystemIconTheme(false)
 
@@ -227,14 +228,14 @@ Item {
 
     function loadSettings(force) {
         const text = file.text()
-        if (!text) { errorMessage = "Settings file is empty or unavailable; using last valid settings."; return }
-        if (text === savedText && !force) return
+        if (!text) { errorMessage = "Settings file is empty or unavailable; using last valid settings."; return false }
+        if (text === savedText && !force) return true
         if ((dirty || saving) && !force) {
             if (text !== pendingSave) {
                 externalConflict = true
                 errorMessage = "Configuration changed on disk. Reload to discard unsaved edits."
             }
-            return
+            return false
         }
         try {
             const value = JSON.parse(text)
@@ -256,7 +257,8 @@ Item {
             errorMessage = ""
             refreshSystemIconTheme(false)
             changed()
-        } catch (e) { errorMessage = "Settings not applied: " + e }
+            return true
+        } catch (e) { errorMessage = "Settings not applied: " + e; return false }
     }
 
     function reloadSettings() {
@@ -413,12 +415,16 @@ Item {
         atomicWrites: true
         printErrors: true
         onLoaded: {
-            root.loadSettings(root.discardRequested)
+            const requested = root.discardRequested
             root.discardRequested = false
+            const success = root.loadSettings(requested)
+            if (requested) root.settingsReloaded(success)
         }
         onLoadFailed: {
+            const requested = root.discardRequested
             root.discardRequested = false
             root.errorMessage = "Settings file could not be read; using last valid settings."
+            if (requested) root.settingsReloaded(false)
         }
         onFileChanged: if (!root.saving) reload()
         onSaved: {

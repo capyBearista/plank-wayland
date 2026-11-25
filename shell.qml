@@ -13,7 +13,11 @@ ShellRoot {
     property bool menuOpen: false
     property bool settingsOpen: false
     property var popupScreen: null
-    readonly property var eligibleScreens: Array.from(Quickshell.screens).filter(screen => !settingsStore.dockValues.excludedMonitors.includes(screen.name))
+    readonly property string monitorExclusionSignature: JSON.stringify(settingsStore.dockValues.excludedMonitors)
+    readonly property var eligibleScreens: {
+        const excluded = JSON.parse(monitorExclusionSignature)
+        return Array.from(Quickshell.screens).filter(screen => !excluded.includes(screen.name))
+    }
     property real menuX: 0
     property real menuBottomMargin: DockSettings.dock.menuBottomMargin
     property string menuKey: ""
@@ -116,8 +120,11 @@ ShellRoot {
     onEligibleScreensChanged: {
         if ((menuOpen || settingsOpen) && (!popupScreen || !eligibleScreens.includes(popupScreen))) {
             closeMenu()
-            settingsOpen = false
-            popupScreen = null
+            if (settingsOpen && eligibleScreens.length) popupScreen = eligibleScreens[0]
+            else {
+                settingsOpen = false
+                popupScreen = null
+            }
         }
     }
 

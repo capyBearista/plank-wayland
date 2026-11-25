@@ -56,10 +56,6 @@ if follow_icon_theme_enabled && [[ -z "${QS_ICON_THEME:-}" ]]; then
 fi
 
 lock_path="${XDG_RUNTIME_DIR:?Missing XDG_RUNTIME_DIR}/plank-wayland-${HYPRLAND_INSTANCE_SIGNATURE}.lock"
-# Keep the lock descriptor open across exec, and explain conflicts.
-exec 9>"$lock_path"
-if ! flock --nonblock 9; then
-  echo "Plank Wayland already holds the lock for this Hyprland session. Stop the other instance before retrying." >&2
-  exit 75
-fi
-exec quickshell --path "$project_dir/shell.qml"
+# The flock supervisor owns the lock; the child and detached apps never inherit it.
+# Verbose mode reports a failed lock acquisition (status 75).
+exec flock --nonblock --conflict-exit-code 75 --close --verbose "$lock_path" quickshell --path "$project_dir/shell.qml"

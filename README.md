@@ -122,3 +122,5 @@ Upstream: [franklinbravos/plank-wayland](https://github.com/franklinbravos/plank
 Settings now use a categorized Qt Quick Controls panel with Appearance, Behavior, Visibility, Applications, Displays, and Advanced sections. Changes preview live; Save persists them and Cancel/Close restores saved preferences. Pin edits in Applications are saved immediately and are separate from preference edits. Existing XDG files require no migration. The first time magnification is enabled from 100%, it changes to 150%.
 
 Workspace minimize uses the currently focused workspace rather than the active window flag. A move is confirmed asynchronously from compositor state; failures are logged without retrying the move. Native minimize remains compositor-dependent. Named/special workspaces (other than reserved recovery workspaces), fullscreen and pinned windows are not moved into a hidden workspace.
+
+The service's main process may be `flock`, supervising the Quickshell child. This avoids passing the session lock to detached applications. Exit 75 indicates another instance owns the lock; the journal reports the failed acquisition.

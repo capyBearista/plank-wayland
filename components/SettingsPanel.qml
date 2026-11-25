@@ -9,6 +9,7 @@ C.Pane {
     required property var store
     required property var pinsStore
     signal closeRequested()
+    signal editorResetRequested()
     property string section: "Appearance"
     property string fieldError: ""
     property bool cancelPending: false
@@ -45,6 +46,7 @@ C.Pane {
         forceActiveFocus()
         fieldError = ""
         if (!store.dirty && !store.externalConflict) {
+            editorResetRequested()
             closeRequested()
             return
         }
@@ -58,14 +60,15 @@ C.Pane {
     function pinKey(pin) { return Identity.key(pin, options.identityOverrides) }
     Connections {
         target: root.store
-        function onDirtyChanged() {
-            if (root.cancelPending && !root.store.dirty) {
-                root.cancelPending = false
-                root.closeRequested()
+        function onSettingsReloaded(success) {
+            if (success) {
+                root.fieldError = ""
+                root.editorResetRequested()
             }
-        }
-        function onErrorMessageChanged() {
-            if (root.cancelPending && root.store.errorMessage) root.cancelPending = false
+            if (root.cancelPending) {
+                root.cancelPending = false
+                if (success) root.closeRequested()
+            }
         }
     }
     Keys.onEscapePressed: if (!store.saving) cancelAndClose()
@@ -154,6 +157,10 @@ C.Pane {
             selectByMouse: true
             text: field.currentValue
             onEditingFinished: if (text !== field.currentValue) field.edited(text)
+            Connections {
+                target: root
+                function onEditorResetRequested() { editor.text = field.currentValue }
+            }
             Connections {
                 target: field
                 function onCurrentValueChanged() {
