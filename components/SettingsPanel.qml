@@ -361,7 +361,7 @@ C.Pane {
             Layout.fillWidth: true
             Text { text: root.store.saving ? "Saving…" : (root.store.dirty ? "Unsaved changes" : "All changes saved"); color: root.muted; Layout.fillWidth: true; wrapMode: Text.WordWrap }
             C.Button { text: "Cancel"; enabled: !root.store.saving; onClicked: root.cancelAndClose() }
-            C.Button { text: "Save"; highlighted: true; enabled: !root.store.saving && !root.store.externalConflict; onClicked: root.save() }
+            C.Button { text: "Save"; highlighted: true; enabled: root.store.dirty && !root.store.saving && !root.store.externalConflict; onClicked: root.save() }
         }
     }
 }

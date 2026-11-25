@@ -10,9 +10,12 @@ Item {
     readonly property var theme: settings ? settings.theme : DockSettings.theme
     readonly property color barGradientStart: theme.barGradientStart || theme.backgroundColor || "#44ffffff"
     readonly property color barGradientEnd: theme.barGradientEnd || theme.backgroundColor || "#44ffffff"
-    property real dockMouseX: -10000
-    property bool dockHovered: false
-    property real zoomProgress: 0
+    // The stationary PanelWindow input region owns hover, not animated icons.
+    property real pointerX: -10000
+    property bool pointerInside: false
+    readonly property bool dockHovered: pointerInside && !hidden && !menuOpen && !dragging
+    readonly property real dockMouseX: dockHovered ? pointerX : -10000
+    property real zoomProgress: dockHovered && zoomEnabled ? 1 : 0
     property bool autoHide: settings ? settings.dockValues.autoHide : DockSettings.dock.autoHide
     property bool smartHideEnabled: false
     property bool isOverlapped: false
@@ -67,9 +70,6 @@ Item {
     readonly property real barWidth: Math.ceil(dockItemsWidth + barHorizontalPadding * 2)
     readonly property real barHeight: Math.ceil(baseItemSize + barTopPadding + barBottomPadding)
     readonly property real barRadius: Math.min(theme.radius || 16, barHeight / 2)
-    readonly property real trackerBottom: layerHeight - bottomPadding + 4
-    readonly property real trackerTop: layerHeight - bottomPadding - (dockHovered ? maxItemSize : baseItemSize) - 8
-    readonly property real trackerHeight: Math.max(1, trackerBottom - trackerTop)
 
     signal activate(var app)
     signal openMenu(var app)
@@ -125,16 +125,6 @@ Item {
         reorderRequested(from, before)
     }
 
-    function updatePointer(mouseX) {
-        hoverLeaveTimer.stop()
-        if (Math.abs(dockMouseX - mouseX) > 0.5) dockMouseX = mouseX
-        if (!dockHovered) dockHovered = true
-    }
-
-    function schedulePointerLeave() {
-        hoverLeaveTimer.restart()
-    }
-
     implicitWidth: dockMaxWidth
     implicitHeight: baseItemSize + topPadding + bottomPadding
     y: parent.height - height - bottomGap
@@ -144,9 +134,6 @@ Item {
 
     onAppsChanged: syncItemKeys()
     Component.onCompleted: syncItemKeys()
-
-    onDockHoveredChanged: zoomProgress = dockHovered && !dragging ? 1 : 0
-    onDraggingChanged: zoomProgress = dockHovered && !dragging ? 1 : 0
 
     Behavior on zoomProgress {
         NumberAnimation {
@@ -159,16 +146,6 @@ Item {
         NumberAnimation {
             duration: Math.max(0, (root.settings ? root.settings.dockValues.slideTime : DockSettings.dock.slideTime))
             easing.type: Easing.OutCubic
-        }
-    }
-
-    Timer {
-        id: hoverLeaveTimer
-        interval: 70
-        repeat: false
-        onTriggered: {
-            root.dockHovered = false
-            root.dockMouseX = -10000
         }
     }
 
@@ -204,20 +181,6 @@ Item {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         height: root.layerHeight
-
-        MouseArea {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            y: root.trackerTop
-            height: root.trackerHeight
-            z: -1
-            hoverEnabled: true
-            acceptedButtons: Qt.NoButton
-            onPositionChanged: function(mouse) { root.updatePointer(mouse.x) }
-            onEntered: root.updatePointer(mouseX)
-            onExited: root.schedulePointerLeave()
-        }
-
 
         Rectangle {
             visible: root.dragging
@@ -260,8 +223,6 @@ Item {
                 dockItemsWidth: root.dockItemsWidth
                 bottomPadding: root.bottomPadding
                 layerHeight: root.layerHeight
-                onPointerMoved: dockX => root.updatePointer(dockX)
-                onPointerExited: root.schedulePointerLeave()
                 onLaunchRequested: root.launch()
             }
         }
@@ -292,8 +253,6 @@ Item {
                 onActivate: app => root.activate(app)
                 onOpenMenu: app => root.openMenu(app)
                 onCloseMenuRequested: root.closeMenuRequested()
-                onPointerMoved: dockX => root.updatePointer(dockX)
-                onPointerExited: root.schedulePointerLeave()
             }
         }
     }

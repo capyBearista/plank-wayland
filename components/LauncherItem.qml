@@ -25,7 +25,6 @@ DockItem {
         if (button === Qt.RightButton) return
 
         root.hovered = false
-        root.pointerExited()
         root.launchRequested()
     }
 }

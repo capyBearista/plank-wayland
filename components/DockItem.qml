@@ -42,8 +42,6 @@ Rectangle {
     signal activate(var app)
     signal openMenu(var app)
     signal closeMenuRequested()
-    signal pointerMoved(real dockX)
-    signal pointerExited()
 
     readonly property real baseStep: baseItemSize + dockSpacing
     readonly property real baseStart: (dockWidth - dockItemsWidth) / 2
@@ -72,10 +70,6 @@ Rectangle {
         root.activate(root.app)
     }
 
-    function reportPointer(localX) {
-        pointerMoved(x + hitMouse.x + localX)
-    }
-
     function buildLookupIcons() {
         const result = []
         const aliases = root.app.iconAliases || []
@@ -97,7 +91,7 @@ Rectangle {
     height: baseItemSize
     x: staticCenter - width / 2
     y: layerHeight - baseItemSize - bottomPadding
-    z: zoom
+    // Keep interactive slots in a stable stacking order; only the icon is transformed.
     opacity: 1.0
     scale: 1
     transformOrigin: Item.Bottom
@@ -248,7 +242,6 @@ Rectangle {
         preventStealing: true
         onEntered: {
             root.hovered = true
-            root.reportPointer(mouseX)
             if (root.hasMultipleWindows && !root.menuOpen && !root.dragging) {
                 hoverMenuTimer.restart()
             } else if (root.menuOpen && !root.hasMultipleWindows) {
@@ -266,12 +259,10 @@ Rectangle {
             }
             if (moved) root.dragMoved(root.x + x + mouse.x)
             if (!root.menuOpen) root.hovered = true
-            root.reportPointer(mouse.x)
         }
         onExited: {
             root.hovered = false
             hoverMenuTimer.stop()
-            root.pointerExited()
         }
         onPressed: function(mouse) {
             pressX = mouse.x

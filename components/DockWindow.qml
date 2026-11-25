@@ -101,6 +101,8 @@ PanelWindow {
         id: dock
         anchors.horizontalCenter: parent.horizontalCenter
         surfaceHovered: edgeHover.hovered || dockHover.hovered
+        pointerInside: dockHover.hovered
+        pointerX: dockInput.x + dockHover.point.position.x - dock.x
         apps: root.apps
         settings: root.settings
         smartHideEnabled: root.settings.smartHide

@@ -17,6 +17,7 @@ Item {
     property bool discardRequested: false
     property string savedText: ""
     property string pendingSave: ""
+    property bool verifyingSave: false
     property string styleName: DockSettings.styleName
     property string uiLanguage: DockSettings.uiLanguage || "zh-CN"
     readonly property int iconSize: dockValues.iconSize
@@ -277,13 +278,90 @@ Item {
     }
 
     function save() {
-        if (saving || externalConflict) return
+        if (saving || externalConflict || discardRequested) return
+        if (!dirty) {
+            saveMessage = "Settings already saved."
+            return
+        }
         const dock = Object.assign({}, dockValues)
         const overrides = Object.assign({}, styleOverrides)
         if (radiusAdjust || opacityAdjust) overrides[effectiveStyle] = buildTheme(effectiveStyle, indicatorStyle)
         pendingSave = JSON.stringify({schemaVersion: 1, dock: dock, styleName: styleName, uiLanguage: uiLanguage, indicatorStyle: indicatorStyle, styleOverrides: overrides}, null, 4) + "\n"
+        if (pendingSave === savedText) {
+            finishSave()
+            return
+        }
+        saveMessage = ""
+        errorMessage = ""
+        verifyingSave = false
         saving = true
-        file.setText(pendingSave)
+        saveDeadline.restart()
+        try {
+            writer.setText(pendingSave)
+        } catch (e) {
+            failSave("Could not start settings save: " + e, false)
+        }
+    }
+
+    function finishSave() {
+        saveDeadline.stop()
+        savedText = pendingSave
+        try {
+            const written = JSON.parse(pendingSave)
+            styleOverrides = written.styleOverrides
+            dockValues = Config.validateDock(DockSettings.dock, written.dock)
+        } catch (e) {
+            failSave("Could not apply saved settings: " + e, true)
+            return
+        }
+        verifyingSave = false
+        saving = false
+        dirty = false
+        radiusAdjust = 0
+        opacityAdjust = 0
+        externalConflict = false
+        errorMessage = ""
+        saveMessage = "Settings saved."
+    }
+
+    function failSave(message, uncertain) {
+        saveDeadline.stop()
+        verifyingSave = false
+        saving = false
+        errorMessage = message
+        saveMessage = ""
+        if (uncertain) externalConflict = true
+        console.warn("SettingsStore: " + message)
+    }
+
+    function verifySave() {
+        if (!saving) return
+        verifyingSave = true
+        // Defer I/O out of FileView signal handlers to avoid re-entrant operations.
+        Qt.callLater(function() { if (root.saving) file.reload() })
+        saveDeadline.restart()
+    }
+
+    Timer {
+        id: saveDeadline
+        interval: 4000
+        repeat: false
+        onTriggered: {
+            if (!root.saving) return
+            if (!root.verifyingSave) root.verifySave()
+            else root.failSave("Save could not be confirmed. Reload saved configuration before retrying.", true)
+        }
+    }
+
+    // Separate writing from the watched reader. The reader confirms actual disk contents.
+    FileView {
+        id: writer
+        path: root.configDir + "/settings.json"
+        blockWrites: false
+        atomicWrites: true
+        printErrors: true
+        onSaved: if (root.saving) root.verifySave()
+        onSaveFailed: if (root.saving) root.failSave("Could not save settings. Existing file was retained.", false)
     }
 
     readonly property var availableStyles: Object.keys(DockSettings.styles)
@@ -415,37 +493,23 @@ Item {
         atomicWrites: true
         printErrors: true
         onLoaded: {
+            if (root.saving) {
+                if (text() === root.pendingSave) root.finishSave()
+                return
+            }
             const requested = root.discardRequested
             root.discardRequested = false
             const success = root.loadSettings(requested)
             if (requested) root.settingsReloaded(success)
         }
         onLoadFailed: {
+            if (root.saving) return
             const requested = root.discardRequested
             root.discardRequested = false
             root.errorMessage = "Settings file could not be read; using last valid settings."
             if (requested) root.settingsReloaded(false)
         }
-        onFileChanged: if (!root.saving) reload()
-        onSaved: {
-            root.savedText = root.pendingSave
-            try {
-                const written = JSON.parse(root.pendingSave)
-                root.styleOverrides = written.styleOverrides
-                root.dockValues = Config.validateDock(DockSettings.dock, written.dock)
-            } catch (e) {}
-            root.saving = false
-            root.dirty = false
-            root.radiusAdjust = 0
-            root.opacityAdjust = 0
-            root.errorMessage = ""
-            root.saveMessage = "Settings saved."
-            reload()
-        }
-        onSaveFailed: {
-            root.saving = false
-            root.errorMessage = "Could not save settings."
-        }
+        onFileChanged: if (!root.saving) Qt.callLater(function() { if (!root.saving) file.reload() })
     }
 
     Timer {

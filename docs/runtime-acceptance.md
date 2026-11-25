@@ -29,3 +29,7 @@ Record versions, commit SHA, observed results and logs before updating the host 
 - [ ] Open two Firefox windows; hover/click the one icon and select each listed window.
 - [ ] Workspace mode: repeatedly minimize and restore a disposable window in the focused numeric workspace; click a window on another workspace to focus, then click again to minimize. Check logs for confirmed moves.
 - [ ] Confirm only one service process and reboot/login behavior. Hotplug remains outstanding until a second screen is available.
+
+## Follow-up: hover and save recovery
+
+Owner confirmed launcher, indicators, icon sizing, workspace actions, grouped windows, persistence, Cancel and pin reordering at ad89110. Magnification and intermittent save completion remained defective. Retest with auto-hide both on and off: sweep across icons at 150%, stop on an icon, leave the dock, open/close a grouped picker and drag a pin. All icons must return to normal size after leaving, hiding or opening a popup. Save repeatedly including no edits, confirm the status returns to idle, then verify restart persistence. If a save completion is lost, disk read-back should confirm it or the panel should report an error and allow reload/cancel within the bounded timeout. Fresh login and multi-monitor acceptance remain outstanding.
