@@ -16,6 +16,9 @@ Item {
     function isExcluded(app) { return Identity.excluded(app, excludedApps, overrides) }
     function canonical(appId) {
         const preferred = Identity.override(appId, overrides)
+        const normalized = Identity.normalize(preferred)
+        const pin = pinnedApps.find(p => [p.appId, p.desktopId, p.canonicalId].some(id => Identity.normalize(Identity.override(id, overrides)) === normalized))
+        if (pin) return Identity.key(pin, overrides)
         const entry = desktopEntry(preferred)
         return Identity.normalize(entry && entry.id ? entry.id : preferred)
     }
@@ -354,7 +357,7 @@ Item {
         function onRawEvent(event) {
             const name = root.rawEventName(event)
             if (name.indexOf("openwindow") >= 0) {
-                root.rememberPendingApp(root.openEventAppId(event))
+                if (root.options.launchFeedback !== false) root.rememberPendingApp(root.openEventAppId(event))
                 root.scheduleUpdate(true)
                 root.scheduleRefreshRetries(2)
                 return
@@ -379,6 +382,7 @@ Item {
                 function onActivatedChanged() { root.scheduleUpdate(false) }
                 function onTitleChanged() { root.scheduleUpdate(false) }
                 function onMonitorChanged() { root.scheduleUpdate(false) }
+                function onWorkspaceChanged() { root.scheduleUpdate(false) }
             }
             Connections {
                 target: modelData ? modelData.wayland : null

@@ -12,7 +12,7 @@ PanelWindow {
     readonly property var monitor: screen ? Hyprland.monitorFor(screen) : null
     readonly property var visibleWindows: (Hyprland.toplevels.values || []).filter(w =>
         w.monitor === monitor && monitor && w.workspace === monitor.activeWorkspace && !(w.wayland && w.wayland.minimized))
-    readonly property bool fullscreen: visibleWindows.some(w => w.wayland && w.wayland.fullscreen)
+    readonly property bool hasFullscreen: visibleWindows.some(w => w.wayland && w.wayland.fullscreen)
     readonly property bool overlaps: {
         if (!settings.smartHide || !screen) return false
         const left = screen.x + (screen.width - dock.barWidth) / 2
@@ -46,13 +46,13 @@ PanelWindow {
         const added = urgentKeys.some(key => !previousUrgent.includes(key))
         previousUrgent = urgentKeys.slice()
         if (!urgentKeys.length) { attentionHold = false; attentionTimer.stop() }
-        if (added && settings.dockValues.attentionReveal && (!fullscreen || settings.dockValues.attentionInFullscreen) && !attentionHold) {
+        if (added && settings.dockValues.attentionReveal && (!hasFullscreen || settings.dockValues.attentionInFullscreen) && !attentionHold) {
             attentionHold = true
             attentionTimer.restart()
         }
     }
 
-    onFullscreenChanged: if (fullscreen && !settings.dockValues.attentionInFullscreen) {
+    onHasFullscreenChanged: if (hasFullscreen && !settings.dockValues.attentionInFullscreen) {
         attentionHold = false
         attentionTimer.stop()
     }

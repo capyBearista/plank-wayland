@@ -121,10 +121,10 @@ Rectangle {
             id: iconImage
             anchors.fill: parent
             anchors.margins: 5
-            source: root.launcherIcon ? "image://icon/application-x-executable" : root.resolvedThemeIcon
+            source: root.launcherIcon && !root.rawIcon ? "" : root.resolvedThemeIcon
             asynchronous: true
             mipmap: true
-            visible: !root.launcherIcon && status === Image.Ready
+            visible: status === Image.Ready && (!root.launcherIcon || root.rawIcon !== "")
         }
 
         Grid {
@@ -132,7 +132,7 @@ Rectangle {
             columns: 3
             rows: 3
             spacing: Math.max(2, root.baseItemSize * 0.055)
-            visible: root.launcherIcon
+            visible: root.launcherIcon && !iconImage.visible
 
             Repeater {
                 model: 9
@@ -140,7 +140,7 @@ Rectangle {
                     width: Math.max(5, root.baseItemSize * 0.14)
                     height: width
                     radius: width * 0.32
-                    color: "#f7ffffff"
+                    color: root.theme.textColor || "white"
                 }
             }
         }
@@ -190,6 +190,7 @@ Rectangle {
 
     Indicator {
         active: root.app.running
+        focused: root.app.active === true
         itemZoom: root.zoom
         settings: root.settings
         anchors.horizontalCenter: parent.horizontalCenter
@@ -215,7 +216,7 @@ Rectangle {
     DockTooltip {
         text: root.app.name
         // The shared dock pointer gives at most one item ownership of the label.
-        shown: !root.launcherIcon && root.hovered && hitMouse.containsMouse && !root.menuOpen
+        shown: root.hovered && hitMouse.containsMouse && !root.menuOpen
             && root.dockMouseX >= root.staticCenter - root.baseStep / 2
             && root.dockMouseX < root.staticCenter + root.baseStep / 2
         settings: root.settings

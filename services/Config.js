@@ -22,9 +22,26 @@ function validateDock(defaults, input) {
     for (const key of Object.keys(ranges)) if (key in d) d[key] = clamp(d[key], ranges[key][0], ranges[key][1])
     if (!["system","light","dark","manual"].includes(d.themeMode)) d.themeMode = defaults.themeMode
     if (!["off","native","workspace"].includes(d.minimizeMode)) d.minimizeMode = defaults.minimizeMode
+    d.identityOverrides = Object.fromEntries(Object.entries(d.identityOverrides).filter(([k,v]) => k && typeof v === "string" && v.trim()))
     return d
 }
 
 function validPins(value) {
     return Array.isArray(value) && value.every(p => p && typeof p === "object" && typeof p.appId === "string" && p.appId.length > 0)
+}
+
+function validateStyles(defaults, supplied) {
+    const result = {}
+    if (!supplied || typeof supplied !== "object" || Array.isArray(supplied)) return result
+    for (const name of Object.keys(supplied)) {
+        if (!Object.prototype.hasOwnProperty.call(defaults, name)) continue
+        const patch = supplied[name]
+        if (!patch || typeof patch !== "object" || Array.isArray(patch)) continue
+        const merged = merge(defaults[name], patch)
+        for (const key of Object.keys(merged)) {
+            if (typeof merged[key] === "string" && /color|gradient|shade|highlight/i.test(key) && !/^(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8}|transparent|white|black)$/.test(merged[key])) merged[key] = defaults[name][key]
+        }
+        result[name] = merged
+    }
+    return result
 }

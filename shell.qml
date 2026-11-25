@@ -13,7 +13,7 @@ ShellRoot {
     property bool menuOpen: false
     property bool settingsOpen: false
     property var popupScreen: null
-    readonly property var eligibleScreens: Quickshell.screens.filter(screen => !settingsStore.dockValues.excludedMonitors.includes(screen.name))
+    readonly property var eligibleScreens: Array.from(Quickshell.screens).filter(screen => !settingsStore.dockValues.excludedMonitors.includes(screen.name))
     property real menuX: 0
     property real menuBottomMargin: DockSettings.dock.menuBottomMargin
     property string menuKey: ""
@@ -77,6 +77,7 @@ ShellRoot {
             return
         }
 
+        if (entry && entry.execute) { entry.execute(); return }
         const rawCommand = String((app && app.command) || "")
         const command = cleanedExec(rawCommand)
         if (command) {
@@ -84,7 +85,9 @@ ShellRoot {
                 entry.execute()
                 return
             }
-            Quickshell.execDetached(["sh", "-c", command])
+            // Legacy explicit command strings are trusted user configuration only.
+            if (app.pinned) Quickshell.execDetached(["sh", "-c", command])
+            else if (/^[a-zA-Z0-9_./+-]+$/.test(command)) Quickshell.execDetached([command])
             return
         }
 
@@ -94,7 +97,7 @@ ShellRoot {
         }
 
         const fallback = cleanedExec(app && app.appId)
-        if (fallback) Quickshell.execDetached(["sh", "-c", fallback])
+        if (/^[a-zA-Z0-9_./+-]+$/.test(fallback)) Quickshell.execDetached([fallback])
     }
 
     function activateApp(app) {

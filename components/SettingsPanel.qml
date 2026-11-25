@@ -34,12 +34,19 @@ Rectangle {
         return I18n.state(key, enabled, language)
     }
 
+    readonly property var options: store ? store.dockValues : ({})
+
+    function cycleOption(key, values) {
+        store.setOption(key, values[(values.indexOf(options[key]) + 1) % values.length])
+    }
+
     function styleButton(name) {
-        return I18n.selected(I18n.styleLabel(name, language), store && store.styleName === name)
+        return I18n.selected(I18n.styleLabel(name, language), store && store.effectiveStyle === name)
     }
 
     Flickable {
         anchors.fill: parent
+        enabled: !root.store.saving
         anchors.margins: 14
         contentWidth: width
         contentHeight: content.implicitHeight
@@ -79,6 +86,12 @@ Rectangle {
             }
         }
 
+        Text { text: "Appearance"; color: root.textColor; font.bold: true }
+        SettingsButton {
+            settings: root.store
+            text: "Theme mode: " + root.options.themeMode
+            onClicked: root.cycleOption("themeMode", ["system", "light", "dark", "manual"])
+        }
         Text { text: root.t("style"); color: root.textColor; opacity: 0.75; font.pixelSize: 12 }
 
         GridLayout {
@@ -104,6 +117,7 @@ Rectangle {
             SettingsButton { settings: root.store; neutral: true; text: root.styleButton("plank-transparent"); onClicked: root.store.setStyle("plank-transparent") }
             SettingsButton { settings: root.store; neutral: true; text: root.styleButton("glass"); onClicked: root.store.setStyle("glass") }
             SettingsButton { settings: root.store; neutral: true; text: root.styleButton("clear-glass"); onClicked: root.store.setStyle("clear-glass") }
+            SettingsButton { settings: root.store; neutral: true; text: root.styleButton("clear-glass-light"); onClicked: root.store.setStyle("clear-glass-light") }
             SettingsButton { settings: root.store; neutral: true; text: root.styleButton("black-glass"); onClicked: root.store.setStyle("black-glass") }
             SettingsButton { settings: root.store; neutral: true; text: root.styleButton("neon"); onClicked: root.store.setStyle("neon") }
             SettingsButton { settings: root.store; neutral: true; text: root.styleButton("minimal"); onClicked: root.store.setStyle("minimal") }
@@ -192,6 +206,87 @@ Rectangle {
             SettingsButton { settings: root.store; neutral: true; text: root.t("stronger"); onClicked: root.store.adjustOpacity(16) }
         }
 
+        Text { text: "Visibility"; color: root.textColor; font.bold: true }
+        Repeater {
+            model: [
+                {key:"bottomGap", label:"Bottom gap (px)", step:1},
+                {key:"edgeTriggerHeight", label:"Edge trigger (px)", step:1},
+                {key:"hideDelayMs", label:"Hide delay (ms)", step:50},
+                {key:"hoverMenuDelayMs", label:"Hover menu delay (ms)", step:50},
+                {key:"attentionRevealMs", label:"Attention reveal (ms)", step:500}
+            ]
+            delegate: RowLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                Text { text: modelData.label; color: root.textColor; Layout.fillWidth: true }
+                SettingsButton { Layout.preferredWidth: 38; Layout.fillWidth: false; settings: root.store; text: "−"; onClicked: root.store.setOption(modelData.key, root.options[modelData.key] - modelData.step) }
+                Text { text: String(root.options[modelData.key]); color: root.textColor }
+                SettingsButton { Layout.preferredWidth: 38; Layout.fillWidth: false; settings: root.store; text: "+"; onClicked: root.store.setOption(modelData.key, root.options[modelData.key] + modelData.step) }
+            }
+        }
+        Text { text: "Window behavior"; color: root.textColor; font.bold: true }
+        SettingsButton {
+            settings: root.store
+            text: "Click to minimize: " + root.options.minimizeMode
+            onClicked: root.cycleOption("minimizeMode", ["off", "native", "workspace"])
+        }
+        Text {
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            color: root.textColor
+            opacity: 0.65
+            text: "Minimize modes are experimental. Workspace mode moves ordinary windows to a reserved special workspace. See README for recovery."
+            font.pixelSize: 11
+        }
+        Repeater {
+            model: [{key:"dragReorder", label:"Drag pins to reorder"}, {key:"launchFeedback", label:"Launch feedback"}, {key:"attentionReveal", label:"Attention reveal"}, {key:"attentionInFullscreen", label:"Attention over fullscreen"}]
+            delegate: SettingsButton {
+                required property var modelData
+                settings: root.store
+                text: modelData.label + ": " + (root.options[modelData.key] ? "On" : "Off")
+                onClicked: root.store.setOption(modelData.key, !root.options[modelData.key])
+            }
+        }
+        Text { text: "Launcher, applications and displays"; color: root.textColor; font.bold: true }
+        Repeater {
+            model: [{key:"launcherIcon", label:"Launcher icon name or absolute path", list:false}, {key:"excludedApps", label:"Excluded application IDs (comma separated)", list:true}, {key:"excludedMonitors", label:"Excluded monitor names (comma separated)", list:true}]
+            delegate: ColumnLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                Text { text: modelData.label; color: root.textColor; font.pixelSize: 11 }
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 34
+                    color: root.theme.menuItemColor || "#333333"
+                    radius: 6
+                    TextInput {
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        color: root.textColor
+                        selectByMouse: true
+                        clip: true
+                        text: modelData.list ? (root.options[modelData.key] || []).join(", ") : String(root.options[modelData.key] || "")
+                        onEditingFinished: {
+                            const value = modelData.list ? text.split(",").map(s => s.trim()).filter(s => s) : text.trim()
+                            if (JSON.stringify(value) !== JSON.stringify(root.options[modelData.key])) root.store.setOption(modelData.key, value)
+                        }
+                    }
+                }
+            }
+        }
+        Text {
+            Layout.fillWidth: true
+            text: root.store.errorMessage
+            visible: text !== ""
+            color: root.textColor
+            wrapMode: Text.WordWrap
+        }
+        SettingsButton {
+            settings: root.store
+            text: "Reload / discard unsaved edits"
+            enabled: !root.store.saving
+            onClicked: root.store.reloadSettings()
+        }
         Text {
             Layout.fillWidth: true
             text: root.t("savedHint")
@@ -205,7 +300,8 @@ Rectangle {
             Layout.fillWidth: true
             settings: root.store
             neutral: false
-            text: root.store && root.store.dirty ? root.t("saveChanges") : root.t("saved")
+            enabled: root.store && !root.store.saving && !root.store.externalConflict
+            text: root.store && root.store.saving ? "Saving…" : (root.store && root.store.dirty ? root.t("saveChanges") : root.t("saved"))
             onClicked: if (root.store) root.store.save()
         }
         }

@@ -5,6 +5,7 @@ Rectangle {
     id: root
 
     property bool active: false
+    property bool focused: false
     property real itemZoom: 1
     property var settings: null
     property color customColor: "transparent"
@@ -14,7 +15,7 @@ Rectangle {
     readonly property bool legacyStyle: theme.indicatorStyle === "legacy"
     readonly property color indicatorColor: customColor !== "transparent" ? customColor : theme.indicatorColor
 
-    width: active ? (lineStyle ? (root.settings ? root.settings.dockValues.indicatorSize : DockSettings.dock.indicatorSize) * 3.2 : (root.settings ? root.settings.dockValues.indicatorSize : DockSettings.dock.indicatorSize) * Math.max(1, Math.min(itemZoom, 1.35))) : 0
+    width: active ? (lineStyle ? (root.settings ? root.settings.dockValues.indicatorSize : DockSettings.dock.indicatorSize) * (focused ? 4.5 : 3.2) : (root.settings ? root.settings.dockValues.indicatorSize : DockSettings.dock.indicatorSize) * Math.max(1, Math.min(itemZoom, 1.35))) : 0
     height: active ? (lineStyle ? Math.max(2, (root.settings ? root.settings.dockValues.indicatorSize : DockSettings.dock.indicatorSize) / 2) : (root.settings ? root.settings.dockValues.indicatorSize : DockSettings.dock.indicatorSize)) : 0
     radius: height / 2
     color: indicatorColor

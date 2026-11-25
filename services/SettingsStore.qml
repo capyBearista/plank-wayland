@@ -39,7 +39,10 @@ Item {
     property bool launcherPressFeedback: launcherDefaults.pressFeedback === true
     property real launcherIconScale: launcherDefaults.iconScale || 1
     property bool dirty: false
-    readonly property var theme: buildTheme(styleName, indicatorStyle)
+    ThemeManager { id: appearance }
+    readonly property string activeMode: dockValues.themeMode === "system" ? appearance.mode : dockValues.themeMode
+    readonly property string effectiveStyle: activeMode === "light" ? dockValues.lightStyle : (activeMode === "dark" ? dockValues.darkStyle : styleName)
+    readonly property var theme: buildTheme(effectiveStyle, indicatorStyle)
 
     signal changed()
 
@@ -219,7 +222,8 @@ Item {
 
     function loadSettings(force) {
         const text = file.text()
-        if (!text || text === savedText) return
+        if (!text) { errorMessage = "Settings file is empty or unavailable; using last valid settings."; return }
+        if (text === savedText) return
         if ((dirty || saving) && !force) {
             if (text !== pendingSave) {
                 externalConflict = true
@@ -232,7 +236,7 @@ Item {
             if (!value || value.schemaVersion !== 1 || !value.dock || typeof value.dock !== "object" || Array.isArray(value.dock)) throw Error("Invalid settings schema")
             const d = Config.validateDock(DockSettings.dock, value.dock)
             dockValues = d
-            styleOverrides = value.styleOverrides && typeof value.styleOverrides === "object" && !Array.isArray(value.styleOverrides) ? value.styleOverrides : ({})
+            styleOverrides = Config.validateStyles(DockSettings.styles, value.styleOverrides)
             styleName = DockSettings.styles[value.styleName] ? value.styleName : DockSettings.styleName
             uiLanguage = typeof value.uiLanguage === "string" ? value.uiLanguage : (DockSettings.uiLanguage || "en")
             iconSize = d.iconSize
@@ -276,7 +280,7 @@ Item {
             autoHide: autoHide, smartHide: smartHide
         })
         const overrides = Object.assign({}, styleOverrides)
-        if (radiusAdjust || opacityAdjust) overrides[styleName] = buildTheme(styleName, indicatorStyle)
+        if (radiusAdjust || opacityAdjust) overrides[effectiveStyle] = buildTheme(effectiveStyle, indicatorStyle)
         pendingSave = JSON.stringify({schemaVersion: 1, dock: dock, styleName: styleName, uiLanguage: uiLanguage, indicatorStyle: indicatorStyle, styleOverrides: overrides}, null, 4) + "\n"
         saving = true
         file.setText(pendingSave)
@@ -284,6 +288,7 @@ Item {
 
     function setStyle(name) {
         styleName = name
+        setOption("themeMode", "manual")
         indicatorStyle = styleDefaults(name).indicatorStyle || "dot"
         radiusAdjust = 0
         opacityAdjust = 0
@@ -380,6 +385,7 @@ Item {
         onFileChanged: if (!root.saving) reload()
         onSaved: {
             root.savedText = root.pendingSave
+            try { root.styleOverrides = JSON.parse(root.pendingSave).styleOverrides } catch (e) {}
             root.saving = false
             root.dirty = false
             root.radiusAdjust = 0

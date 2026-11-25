@@ -8,7 +8,7 @@ DockItem {
     app: {
         "name": "Applications",
         "appId": "launchpad",
-        "icon": "",
+        "icon": root.settings ? root.settings.dockValues.launcherIcon : "",
         "launcherIcon": true,
         "running": false,
         "pinned": false,

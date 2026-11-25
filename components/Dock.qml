@@ -129,7 +129,7 @@ Item {
 
     // The transparent layer stays larger so magnified icons have room above the bar.
 
-    onAppsChanged: if (dragging && !apps.some(app => appKey(app) === draggingKey && app.pinned)) draggingKey = ""
+    onAppsChanged: if (dragging) draggingKey = ""
 
     onDockHoveredChanged: zoomProgress = dockHovered ? 1 : 0
 
